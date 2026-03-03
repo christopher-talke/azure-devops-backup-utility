@@ -1,0 +1,22 @@
+{
+  "completed_at": "2026-03-03T22:59:40.653437+00:00",
+  "duration_seconds": 9.203545,
+  "limits_applied": {
+    "components": [
+      "boards",
+      "git",
+      "org",
+      "permissions",
+      "pipelines",
+      "projects"
+    ],
+    "concurrency": 4,
+    "max_items": 0,
+    "since": ""
+  },
+  "started_at": "2026-03-03T22:59:31.449892+00:00",
+  "tool": "ado-backup",
+  "total_entities": 0,
+  "total_errors": 1,
+  "version": "0.1.0"
+}
