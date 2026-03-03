@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "ado-backup"
+version = "0.1.0"
+description = "Azure DevOps Backup Utility – backs up organizations, projects, repos, boards, pipelines and more using only Azure CLI."
+requires-python = ">=3.9"
+license = {text = "MIT"}
+
+[project.scripts]
+ado-backup = "ado_backup.cli:main"
