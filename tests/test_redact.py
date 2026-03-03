@@ -2,7 +2,7 @@
 
 import unittest
 
-from ado_backup.redact import REDACTED, redact
+from redact import REDACTED, redact
 
 
 class TestRedact(unittest.TestCase):

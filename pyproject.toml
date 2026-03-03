@@ -10,7 +10,14 @@ requires-python = ">=3.9"
 license = {text = "MIT"}
 
 [project.scripts]
-ado-backup = "ado_backup.cli:main"
+ado-backup = "cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["cli", "config", "azcli", "backoff", "paginator", "paths", "redact", "writers", "inventory", "orchestrator", "__init__", "__main__"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

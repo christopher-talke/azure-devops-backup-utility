@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from ado_backup.config import ALL_COMPONENTS, BackupConfig, build_config
+from config import ALL_COMPONENTS, BackupConfig, build_config
 
 
 class TestBackupConfig(unittest.TestCase):

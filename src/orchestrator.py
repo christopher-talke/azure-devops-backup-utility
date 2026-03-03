@@ -7,11 +7,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from . import azcli
-from .config import BackupConfig
-from .inventory import Inventory
-from .paths import BackupPaths
-from .scopes import boards, git, org, permissions, pipelines, projects
+import azcli
+from config import BackupConfig
+from inventory import Inventory
+from paths import BackupPaths
+from scopes import boards, git, org, permissions, pipelines, projects
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 
 import unittest
 
-from ado_backup.paginator import paginate
+from paginator import paginate
 
 
 class TestPaginate(unittest.TestCase):

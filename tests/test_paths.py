@@ -3,7 +3,7 @@
 import unittest
 from pathlib import Path
 
-from ado_backup.paths import BackupPaths, parse_org_url, safe_name
+from paths import BackupPaths, parse_org_url, safe_name
 
 
 class TestSafeName(unittest.TestCase):

@@ -21,14 +21,14 @@ steps:
   - script: |
       export AZURE_DEVOPS_EXT_PAT=$(ADO_PAT)
       export AZURE_DEVOPS_ORG_URL=$(ADO_ORG_URL)
-      python -m ado_backup \
+      export PYTHONPATH=src
+      python src/cli.py \
         --output-dir $(Build.ArtifactStagingDirectory)/ado-backup \
         --max-items 500
     displayName: "Run ADO Backup"
     env:
       AZURE_DEVOPS_EXT_PAT: $(ADO_PAT)
       AZURE_DEVOPS_ORG_URL: $(ADO_ORG_URL)
-    workingDirectory: $(Build.SourcesDirectory)
 
   - task: PublishBuildArtifacts@1
     inputs:

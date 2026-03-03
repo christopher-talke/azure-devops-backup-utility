@@ -47,11 +47,10 @@ export AZURE_DEVOPS_EXT_PAT="your-personal-access-token"
 export AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-org"
 
 # Run the backup
-cd src
-python -m ado_backup
+python src/cli.py
 
 # Or with options
-python -m ado_backup \
+python src/cli.py \
   --projects "Project1,Project2" \
   --output-dir ./my-backup \
   --max-items 100 \
@@ -98,7 +97,7 @@ output-dir: ./backup
 verbose: false
 ```
 
-Then run: `python -m ado_backup --config config.yaml`
+Then run: `python src/cli.py --config config.yaml`
 
 ## Output Structure
 
@@ -195,34 +194,33 @@ ado-backup/
 
 ```bash
 cd /path/to/repo
-PYTHONPATH=src python -m pytest tests/ -v
+python -m pytest tests/ -v
 ```
 
 ## Project Structure
 
 ```
 src/
-  ado_backup/
-    __init__.py          # Package init
-    __main__.py          # python -m entry point
-    cli.py               # argparse CLI
-    config.py            # Configuration merge (env, CLI, YAML)
-    azcli.py             # az CLI wrapper with retry
-    backoff.py           # Exponential backoff with jitter
-    paginator.py         # Continuation token pagination
-    paths.py             # Output directory path builder
-    redact.py            # Sensitive field redaction
-    writers.py           # Atomic JSON/binary writers
-    inventory.py         # Manifest and inventory tracking
-    orchestrator.py      # Full backup orchestration
-    scopes/
-      __init__.py
-      org.py             # Org-level exports
-      projects.py        # Project enumeration
-      git.py             # Repository backup
-      boards.py          # Work items, queries, tags
-      pipelines.py       # Pipeline definitions and runs
-      permissions.py     # ACL and security export
+  __init__.py          # Package init
+  __main__.py          # Entry point
+  cli.py               # argparse CLI
+  config.py            # Configuration merge (env, CLI, YAML)
+  azcli.py             # az CLI wrapper with retry
+  backoff.py           # Exponential backoff with jitter
+  paginator.py         # Continuation token pagination
+  paths.py             # Output directory path builder
+  redact.py            # Sensitive field redaction
+  writers.py           # Atomic JSON/binary writers
+  inventory.py         # Manifest and inventory tracking
+  orchestrator.py      # Full backup orchestration
+  scopes/
+    __init__.py
+    org.py             # Org-level exports
+    projects.py        # Project enumeration
+    git.py             # Repository backup
+    boards.py          # Work items, queries, tags
+    pipelines.py       # Pipeline definitions and runs
+    permissions.py     # ACL and security export
 tests/
   test_redact.py
   test_paths.py

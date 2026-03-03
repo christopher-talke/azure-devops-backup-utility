@@ -6,7 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
-from .config import build_config
+from config import build_config
 
 
 def _build_parser():
@@ -55,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
             logging.error(e)
         return 2
 
-    from .orchestrator import run_backup
+    from orchestrator import run_backup
 
     return run_backup(cfg)
 

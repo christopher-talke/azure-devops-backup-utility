@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ado_backup.writers import append_jsonl, write_binary, write_json
+from writers import append_jsonl, write_binary, write_json
 
 
 class TestWriteJson(unittest.TestCase):

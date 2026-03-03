@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from .backoff import retry
+from backoff import retry
 
 logger = logging.getLogger(__name__)
 

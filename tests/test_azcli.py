@@ -4,7 +4,7 @@ import subprocess
 import unittest
 from unittest.mock import MagicMock, patch
 
-from ado_backup.azcli import AzCliError, AzCliThrottled, _mask_pat, _run_az
+from azcli import AzCliError, AzCliThrottled, _mask_pat, _run_az
 
 
 class TestMaskPat(unittest.TestCase):
@@ -19,7 +19,7 @@ class TestMaskPat(unittest.TestCase):
 
 
 class TestRunAz(unittest.TestCase):
-    @patch("ado_backup.azcli.subprocess.run")
+    @patch("azcli.subprocess.run")
     def test_success_json(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -29,7 +29,7 @@ class TestRunAz(unittest.TestCase):
         result = _run_az(["az", "test"], parse_json=True)
         self.assertEqual(result, {"key": "value"})
 
-    @patch("ado_backup.azcli.subprocess.run")
+    @patch("azcli.subprocess.run")
     def test_failure_raises(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=1,
@@ -39,7 +39,7 @@ class TestRunAz(unittest.TestCase):
         with self.assertRaises(AzCliError):
             _run_az(["az", "test"])
 
-    @patch("ado_backup.azcli.subprocess.run")
+    @patch("azcli.subprocess.run")
     def test_throttle_429(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=1,
@@ -49,7 +49,7 @@ class TestRunAz(unittest.TestCase):
         with self.assertRaises(AzCliThrottled):
             _run_az(["az", "test"])
 
-    @patch("ado_backup.azcli.subprocess.run")
+    @patch("azcli.subprocess.run")
     def test_empty_output(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -59,7 +59,7 @@ class TestRunAz(unittest.TestCase):
         result = _run_az(["az", "test"], parse_json=True)
         self.assertIsNone(result)
 
-    @patch("ado_backup.azcli.subprocess.run")
+    @patch("azcli.subprocess.run")
     def test_raw_output(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,

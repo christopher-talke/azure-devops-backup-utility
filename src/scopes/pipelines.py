@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .. import azcli, redact, writers
-from ..inventory import Inventory
-from ..paths import BackupPaths
+import azcli
+import redact
+import writers
+from inventory import Inventory
+from paths import BackupPaths
 
 logger = logging.getLogger(__name__)
 

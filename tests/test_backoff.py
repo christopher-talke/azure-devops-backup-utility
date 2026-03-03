@@ -2,7 +2,7 @@
 
 import unittest
 
-from ado_backup.backoff import retry
+from backoff import retry
 
 
 class TestRetry(unittest.TestCase):
