@@ -1,6 +1,12 @@
 # Azure DevOps Backup Utility
 
-A production-grade, non-interactive backup tool for Azure DevOps that uses only Azure CLI (`az devops`) commands and Git CLI to retrieve and persist data. Designed for CI/CD pipelines with zero external Python dependencies.
+A non-interactive backup tool for Azure DevOps that uses only Azure CLI (`az devops`) commands and Git CLI to retrieve and persist data. 
+
+Designed for CI/CD pipelines with zero external Python dependencies.
+
+## Warning
+
+🤖 This project has been generated with the assistance of Anthropics Claude LLM Models, please be aware of this before running this against production systems, and please take the time to understand how this project works before blindly running it.
 
 ## Features
 
@@ -24,7 +30,9 @@ A production-grade, non-interactive backup tool for Azure DevOps that uses only 
 
 ### Authentication
 
-The tool uses Azure CLI authentication. In Azure DevOps Pipelines, configure the `AZURE_DEVOPS_EXT_PAT` environment variable to `$(System.AccessToken)` so the pipeline's system token is used for all API calls.
+The tool uses Azure CLI authentication. 
+
+In Azure DevOps Pipelines, configure the `AZURE_DEVOPS_EXT_PAT` environment variable to `$(System.AccessToken)` so the pipeline's system token is used for all API calls.
 
 A Personal Access Token (PAT) can optionally be provided via `AZURE_DEVOPS_EXT_PAT` or `SYSTEM_ACCESSTOKEN` environment variables. If no PAT is set, the tool relies on whatever authentication the `az` CLI already has configured.
 
@@ -261,4 +269,4 @@ tests/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - See [LICENSE](LICENSE).
