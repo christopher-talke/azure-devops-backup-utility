@@ -1,0 +1,66 @@
+# GitHub Actions – Backup & upload to AWS S3
+#
+# Prerequisites:
+#   1. An S3 bucket (e.g. "my-ado-backups").
+#   2. GitHub repository secrets:
+#        ADO_PAT        – Azure DevOps PAT (or rely on az CLI auth)
+#        ADO_ORG_URL    – e.g. https://dev.azure.com/your-org
+#        AWS_ACCESS_KEY_ID
+#        AWS_SECRET_ACCESS_KEY
+#        AWS_REGION     – e.g. ap-southeast-2
+#        S3_BUCKET      – e.g. my-ado-backups
+#
+# The workflow runs the backup, compresses the output, then uploads
+# the archive to S3 using the AWS CLI (pre-installed on GitHub runners).
+
+name: ADO Backup → S3
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 0"   # Weekly on Sunday at 02:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Azure CLI & DevOps extension
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add -n azure-devops -y
+
+      - name: Run ADO Backup
+        env:
+          AZURE_DEVOPS_EXT_PAT: ${{ secrets.ADO_PAT }}
+          AZURE_DEVOPS_ORG_URL: ${{ secrets.ADO_ORG_URL }}
+        run: |
+          export PYTHONPATH=src
+          python src/cli.py \
+            --output-dir ${{ github.workspace }}/ado-backup \
+            --compress all \
+            --max-items 500
+
+      - name: Upload backup to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          ARCHIVE=$(find ${{ github.workspace }}/ado-backup -name '*.tar.gz' | head -1)
+          DATESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          if [ -n "$ARCHIVE" ]; then
+            aws s3 cp "$ARCHIVE" "s3://${{ secrets.S3_BUCKET }}/${DATESTAMP}/$(basename $ARCHIVE)"
+          else
+            aws s3 sync ${{ github.workspace }}/ado-backup "s3://${{ secrets.S3_BUCKET }}/${DATESTAMP}/"
+          fi
+          echo "Backup uploaded to s3://${{ secrets.S3_BUCKET }}/${DATESTAMP}/"

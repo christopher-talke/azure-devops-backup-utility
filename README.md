@@ -93,7 +93,7 @@ python src/cli.py \
 
 ## YAML Configuration
 
-Create a `config.yaml`:
+Create a `config.yaml` (see [`examples/config.yaml`](examples/config.yaml)):
 
 ```yaml
 org-url: https://dev.azure.com/myorg
@@ -194,6 +194,21 @@ ado-backup/
 - Use `--compress repos` to tar.gz each mirror clone, `--compress project` for per-project archives, or `--compress all` for a single archive
 - Recommended: set artifact retention policies in your CI system
 
+## CI/CD Examples
+
+Ready-to-use pipeline definitions are in the [`examples/`](examples/) folder:
+
+| File | Platform | Upload target |
+|---|---|---|
+| [`azure-pipelines.yml`](examples/azure-pipelines.yml) | Azure DevOps | Build artifacts |
+| [`azure-pipelines-blob-storage.yml`](examples/azure-pipelines-blob-storage.yml) | Azure DevOps | Azure Blob Storage |
+| [`github-actions-backup.yml`](examples/github-actions-backup.yml) | GitHub Actions | Workflow artifacts |
+| [`github-actions-blob-storage.yml`](examples/github-actions-blob-storage.yml) | GitHub Actions | Azure Blob Storage |
+| [`github-actions-s3.yml`](examples/github-actions-s3.yml) | GitHub Actions | AWS S3 |
+| [`config.yaml`](examples/config.yaml) | — | Example YAML config |
+
+Copy the relevant file into your project and adjust variables/secrets as described in the file comments.
+
 ## Running Tests
 
 ```bash
@@ -204,6 +219,13 @@ python -m pytest tests/ -v
 ## Project Structure
 
 ```
+examples/
+  azure-pipelines.yml                # ADO pipeline (artifact upload)
+  azure-pipelines-blob-storage.yml   # ADO pipeline → Azure Blob Storage
+  github-actions-backup.yml          # GitHub Actions (artifact upload)
+  github-actions-blob-storage.yml    # GitHub Actions → Azure Blob Storage
+  github-actions-s3.yml              # GitHub Actions → AWS S3
+  config.yaml                        # Example YAML configuration
 src/
   __init__.py          # Package init
   __main__.py          # Entry point

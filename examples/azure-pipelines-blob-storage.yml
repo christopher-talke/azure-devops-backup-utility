@@ -1,0 +1,70 @@
+# Azure DevOps Pipeline – Backup & upload to Azure Blob Storage
+#
+# Prerequisites:
+#   1. An Azure Storage Account with a container (e.g. "ado-backups").
+#   2. A service connection named "AzureSubscription" with access to the storage account,
+#      OR use workload identity federation / managed identity on a self-hosted agent.
+#
+# The pipeline runs the backup, compresses the output, then uploads
+# the archive to Blob Storage using the AzureCLI task.
+
+trigger:
+  - main
+
+schedules:
+  - cron: "0 2 * * 0"
+    displayName: Weekly Sunday 02:00 UTC
+    branches:
+      include:
+        - main
+    always: true
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  STORAGE_ACCOUNT: "yourstorageaccount"
+  CONTAINER_NAME: "ado-backups"
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.10"
+
+  - script: az extension add -n azure-devops -y
+    displayName: "Install Azure DevOps CLI extension"
+
+  - script: |
+      export PYTHONPATH=src
+      python src/cli.py \
+        --output-dir $(Build.ArtifactStagingDirectory)/ado-backup \
+        --compress all \
+        --max-items 500
+    displayName: "Run ADO Backup"
+    env:
+      AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+      AZURE_DEVOPS_ORG_URL: $(System.CollectionUri)
+
+  - task: AzureCLI@2
+    displayName: "Upload backup to Azure Blob Storage"
+    inputs:
+      azureSubscription: "AzureSubscription"
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        ARCHIVE=$(find $(Build.ArtifactStagingDirectory)/ado-backup -name '*.tar.gz' | head -1)
+        if [ -z "$ARCHIVE" ]; then
+          echo "##vso[task.logissue type=warning]No archive found – uploading raw directory"
+          az storage blob upload-batch \
+            --account-name $(STORAGE_ACCOUNT) \
+            --destination $(CONTAINER_NAME) \
+            --source $(Build.ArtifactStagingDirectory)/ado-backup \
+            --overwrite
+        else
+          az storage blob upload \
+            --account-name $(STORAGE_ACCOUNT) \
+            --container-name $(CONTAINER_NAME) \
+            --name "$(Build.BuildNumber)/${ARCHIVE##*/}" \
+            --file "$ARCHIVE" \
+            --overwrite
+        fi
