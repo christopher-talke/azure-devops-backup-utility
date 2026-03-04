@@ -25,7 +25,7 @@ jobs:
 
       - name: Run ADO Backup
         env:
-          AZURE_DEVOPS_EXT_PAT: ${{ secrets.ADO_PAT }}
+          AZURE_DEVOPS_EXT_PAT: ${{ secrets.ADO_PAT }}  # optional if az CLI is already authenticated
           AZURE_DEVOPS_ORG_URL: ${{ secrets.ADO_ORG_URL }}
         run: |
           export PYTHONPATH=src

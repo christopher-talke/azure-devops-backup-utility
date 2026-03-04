@@ -29,10 +29,10 @@ class TestBackupConfig(unittest.TestCase):
         errors = cfg.validate()
         self.assertTrue(any("Organization URL" in e for e in errors))
 
-    def test_validate_missing_pat(self):
+    def test_validate_no_pat_is_ok(self):
         cfg = BackupConfig(org_url="https://dev.azure.com/test")
         errors = cfg.validate()
-        self.assertTrue(any("PAT" in e for e in errors))
+        self.assertEqual(errors, [])
 
     def test_validate_ok(self):
         cfg = BackupConfig(org_url="https://dev.azure.com/test", pat="token")
@@ -59,6 +59,20 @@ class TestBuildConfig(unittest.TestCase):
                     os.environ.pop(k, None)
                 else:
                     os.environ[k] = v
+
+    def test_system_accesstoken_fallback(self):
+        original_pat = os.environ.pop("AZURE_DEVOPS_EXT_PAT", None)
+        original_sys = os.environ.pop("SYSTEM_ACCESSTOKEN", None)
+        os.environ["SYSTEM_ACCESSTOKEN"] = "systoken"
+        try:
+            cfg = build_config()
+            self.assertEqual(cfg.pat, "systoken")
+        finally:
+            os.environ.pop("SYSTEM_ACCESSTOKEN", None)
+            if original_pat is not None:
+                os.environ["AZURE_DEVOPS_EXT_PAT"] = original_pat
+            if original_sys is not None:
+                os.environ["SYSTEM_ACCESSTOKEN"] = original_sys
 
     def test_cli_args_override(self):
         env = {

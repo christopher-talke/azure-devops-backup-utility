@@ -22,9 +22,15 @@ A production-grade, non-interactive backup tool for Azure DevOps that uses only 
 | Azure DevOps CLI extension | auto-installed if missing |
 | Git | any recent version |
 
-### PAT Permissions
+### Authentication
 
-The Personal Access Token must have at least these scopes:
+The tool uses Azure CLI authentication. In Azure DevOps Pipelines, configure the `AZURE_DEVOPS_EXT_PAT` environment variable to `$(System.AccessToken)` so the pipeline's system token is used for all API calls.
+
+A Personal Access Token (PAT) can optionally be provided via `AZURE_DEVOPS_EXT_PAT` or `SYSTEM_ACCESSTOKEN` environment variables. If no PAT is set, the tool relies on whatever authentication the `az` CLI already has configured.
+
+When a PAT is provided, it is also used for `git clone --mirror` authentication. Without a PAT, git clones rely on existing credential helpers.
+
+#### PAT Scopes (if using a PAT)
 
 | Scope | Access |
 |---|---|
@@ -32,7 +38,6 @@ The Personal Access Token must have at least these scopes:
 | Code | Read |
 | Work Items | Read |
 | Build | Read |
-| Release | Read |
 | Graph (Users/Groups) | Read |
 | Security (Permissions) | Read |
 | Service Connections | Read |
@@ -43,8 +48,10 @@ The Personal Access Token must have at least these scopes:
 
 ```bash
 # Set required environment variables
-export AZURE_DEVOPS_EXT_PAT="your-personal-access-token"
 export AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-org"
+
+# Optional: provide a PAT (otherwise relies on az CLI auth)
+export AZURE_DEVOPS_EXT_PAT="your-personal-access-token"
 
 # Run the backup
 python src/cli.py
@@ -78,7 +85,8 @@ python src/cli.py \
 
 | Variable | Purpose |
 |---|---|
-| `AZURE_DEVOPS_EXT_PAT` | Personal Access Token (required) |
+| `AZURE_DEVOPS_EXT_PAT` | Personal Access Token (optional – used by az CLI and git clone) |
+| `SYSTEM_ACCESSTOKEN` | Azure Pipelines system token (auto-detected as PAT fallback) |
 | `AZURE_DEVOPS_ORG_URL` | Organisation URL (required) |
 | `ADO_BACKUP_OUTPUT_DIR` | Override default output directory |
 | `ADO_BACKUP_TIMEOUT` | CLI command timeout in seconds |
@@ -132,8 +140,6 @@ ado-backup/
           tags.json
         pipelines/
           pipelines.json
-          classic_build_definitions.json
-          classic_release_definitions.json
           runs_index.json
     _indexes/
       inventory.json
@@ -155,8 +161,6 @@ ado-backup/
 | Work Items | `az boards query` + `az boards work-item show` | Full fields, relations |
 | Queries & Tags | `az devops invoke` | Board queries and tags |
 | Pipelines (YAML) | `az pipelines list` | Definitions metadata |
-| Classic Build Defs | `az devops invoke` | Tasks and variables (redacted) |
-| Classic Release Defs | `az devops invoke` | Tasks and variables (redacted) |
 | Pipeline Runs | `az devops invoke` | Index with configurable limits |
 | Permissions/ACLs | `az devops invoke` | Security namespaces and ACLs |
 

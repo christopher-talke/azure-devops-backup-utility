@@ -81,7 +81,7 @@ class BackupConfig:
         if not self.org_url:
             errors.append("Organization URL is required (--org-url or AZURE_DEVOPS_ORG_URL)")
         if not self.pat:
-            errors.append("PAT is required (AZURE_DEVOPS_EXT_PAT)")
+            logger.info("No PAT provided – relying on az CLI authentication (e.g. System.AccessToken in pipelines)")
         return errors
 
 
@@ -109,8 +109,11 @@ def build_config(args: Any | None = None, yaml_path: Path | None = None) -> Back
     # 2. Environment variables
     if os.environ.get("AZURE_DEVOPS_ORG_URL"):
         cfg.org_url = os.environ["AZURE_DEVOPS_ORG_URL"]
+    # PAT: check AZURE_DEVOPS_EXT_PAT first, then fall back to SYSTEM_ACCESSTOKEN
     if os.environ.get("AZURE_DEVOPS_EXT_PAT"):
         cfg.pat = os.environ["AZURE_DEVOPS_EXT_PAT"]
+    elif os.environ.get("SYSTEM_ACCESSTOKEN"):
+        cfg.pat = os.environ["SYSTEM_ACCESSTOKEN"]
     if os.environ.get("ADO_BACKUP_OUTPUT_DIR"):
         cfg.output_dir = os.environ["ADO_BACKUP_OUTPUT_DIR"]
     if os.environ.get("ADO_BACKUP_TIMEOUT"):

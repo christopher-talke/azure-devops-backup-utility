@@ -5,10 +5,6 @@ trigger:
 pool:
   vmImage: "ubuntu-latest"
 
-variables:
-  - name: AZURE_DEVOPS_EXT_PAT
-    value: $(ADO_PAT)  # set as a secret pipeline variable
-
 steps:
   - task: UsePythonVersion@0
     inputs:
@@ -19,16 +15,14 @@ steps:
     displayName: "Install Azure DevOps CLI extension"
 
   - script: |
-      export AZURE_DEVOPS_EXT_PAT=$(ADO_PAT)
-      export AZURE_DEVOPS_ORG_URL=$(ADO_ORG_URL)
       export PYTHONPATH=src
       python src/cli.py \
         --output-dir $(Build.ArtifactStagingDirectory)/ado-backup \
         --max-items 500
     displayName: "Run ADO Backup"
     env:
-      AZURE_DEVOPS_EXT_PAT: $(ADO_PAT)
-      AZURE_DEVOPS_ORG_URL: $(ADO_ORG_URL)
+      AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+      AZURE_DEVOPS_ORG_URL: $(System.CollectionUri)
 
   - task: PublishBuildArtifacts@1
     inputs:
