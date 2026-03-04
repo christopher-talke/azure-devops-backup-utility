@@ -12,7 +12,6 @@ class TestBackupConfig(unittest.TestCase):
     def test_defaults(self):
         cfg = BackupConfig()
         self.assertEqual(cfg.org_url, "")
-        self.assertEqual(cfg.concurrency, 4)
         self.assertFalse(cfg.fail_fast)
         self.assertFalse(cfg.dry_run)
         self.assertEqual(cfg.active_components, set(ALL_COMPONENTS))
@@ -91,7 +90,6 @@ class TestBuildConfig(unittest.TestCase):
                 exclude=None,
                 since=None,
                 max_items=100,
-                concurrency=2,
                 output_dir="custom-output",
                 fail_fast=True,
                 dry_run=False,

@@ -74,7 +74,6 @@ python src/cli.py \
 | `--exclude` | none | Components to skip |
 | `--since` | — | ISO timestamp for incremental filtering |
 | `--max-items` | `0` (unlimited) | Per-entity item limit |
-| `--concurrency` | `4` | Number of concurrent workers |
 | `--output-dir` | `ado-backup` | Root output directory |
 | `--config` | — | Path to YAML configuration file |
 | `--fail-fast` | `false` | Abort on first error |
@@ -100,7 +99,6 @@ org-url: https://dev.azure.com/myorg
 projects: all
 include: org,projects,git,boards,pipelines
 max-items: 500
-concurrency: 4
 output-dir: ./backup
 verbose: false
 ```
@@ -184,7 +182,6 @@ ado-backup/
 - All API calls use exponential backoff with jitter (default: 5 retries)
 - HTTP 429 and 5xx errors trigger automatic retry with increasing delay
 - Use `--max-items` to cap per-entity exports for CI-friendly runs
-- Use `--concurrency` to control parallelism (future enhancement)
 - Large organisations: consider backing up subsets of projects with `--projects`
 
 ## Storage Footprint

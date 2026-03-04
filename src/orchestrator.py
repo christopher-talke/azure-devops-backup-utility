@@ -26,7 +26,6 @@ def run_backup(cfg: BackupConfig) -> int:
         {
             "max_items": cfg.max_items,
             "since": cfg.since,
-            "concurrency": cfg.concurrency,
             "components": sorted(cfg.active_components),
         }
     )
