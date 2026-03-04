@@ -65,6 +65,7 @@ class BackupConfig:
     exclude: set[str] = field(default_factory=set)
     since: str = ""
     max_items: int = 0  # 0 = unlimited
+    compress: str = ""  # "", "repos", "project", "all"
     output_dir: str = "ado-backup"
     fail_fast: bool = False
     dry_run: bool = False
@@ -136,6 +137,8 @@ def build_config(args: Any | None = None, yaml_path: Path | None = None) -> Back
             cfg.since = args.since
         if getattr(args, "max_items", None) is not None:
             cfg.max_items = args.max_items
+        if getattr(args, "compress", None):
+            cfg.compress = args.compress
         if getattr(args, "output_dir", None):
             cfg.output_dir = args.output_dir
         if getattr(args, "fail_fast", False):

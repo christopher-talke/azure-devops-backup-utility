@@ -74,6 +74,7 @@ python src/cli.py \
 | `--exclude` | none | Components to skip |
 | `--since` | — | ISO timestamp for incremental filtering |
 | `--max-items` | `0` (unlimited) | Per-entity item limit |
+| `--compress` | — | Compress output: `repos`, `project`, or `all` |
 | `--output-dir` | `ado-backup` | Root output directory |
 | `--config` | — | Path to YAML configuration file |
 | `--fail-fast` | `false` | Abort on first error |
@@ -99,6 +100,7 @@ org-url: https://dev.azure.com/myorg
 projects: all
 include: org,projects,git,boards,pipelines
 max-items: 500
+compress: repos
 output-dir: ./backup
 verbose: false
 ```
@@ -189,6 +191,7 @@ ado-backup/
 - JSON exports are typically small (KB–MB per entity)
 - Git mirror clones can be large depending on repository size
 - Use `--exclude git` to skip repository cloning if storage is limited
+- Use `--compress repos` to tar.gz each mirror clone, `--compress project` for per-project archives, or `--compress all` for a single archive
 - Recommended: set artifact retention policies in your CI system
 
 ## Running Tests
@@ -206,6 +209,7 @@ src/
   __main__.py          # Entry point
   cli.py               # argparse CLI
   config.py            # Configuration merge (env, CLI, YAML)
+  compress.py          # Backup compression (repos, project, all)
   azcli.py             # az CLI wrapper with retry
   backoff.py           # Exponential backoff with jitter
   paginator.py         # Continuation token pagination
@@ -226,6 +230,7 @@ tests/
   test_redact.py
   test_paths.py
   test_config.py
+  test_compress.py
   test_backoff.py
   test_writers.py
   test_paginator.py

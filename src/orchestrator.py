@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import azcli
+import compress as _compress
 from config import BackupConfig
 from inventory import Inventory
 from paths import BackupPaths
@@ -139,6 +140,10 @@ def run_backup(cfg: BackupConfig) -> int:
 
     _write_indexes(bp, inv)
 
+    # Compression
+    if cfg.compress and not cfg.dry_run:
+        _run_compression(cfg.compress, bp)
+
     # Summary
     logger.info("=" * 60)
     logger.info("Backup complete: %d entities, %d errors", len(inv.entries), len(inv.errors))
@@ -168,3 +173,19 @@ def _write_indexes(bp: BackupPaths, inv: Inventory) -> None:
         inv.write(bp.inventory_file(), bp.manifest_file(), bp.errors_file())
     except Exception as exc:
         logger.error("Failed to write indexes: %s", exc)
+
+
+def _run_compression(mode: str, bp: BackupPaths) -> None:
+    """Apply compression based on the selected mode."""
+    try:
+        if mode == "repos":
+            n = _compress.compress_repos(bp.projects_dir)
+            logger.info("Compressed %d repo(s)", n)
+        elif mode == "project":
+            n = _compress.compress_projects(bp.projects_dir)
+            logger.info("Compressed %d project(s)", n)
+        elif mode == "all":
+            archive = _compress.compress_all(bp.base)
+            logger.info("Compressed entire backup → %s", archive)
+    except Exception as exc:
+        logger.error("Compression failed: %s", exc)

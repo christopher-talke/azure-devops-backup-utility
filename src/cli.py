@@ -23,6 +23,7 @@ def _build_parser():
     parser.add_argument("--exclude", help="Comma-separated components to exclude")
     parser.add_argument("--since", help="ISO timestamp for incremental-like filtering")
     parser.add_argument("--max-items", type=int, default=0, help="Per-entity item limit (0 = unlimited)")
+    parser.add_argument("--compress", choices=["repos", "project", "all"], help="Compress output: repos (each clone), project (per-project), all (entire backup)")
     parser.add_argument("--output-dir", default="ado-backup", help="Root output directory (default: ado-backup)")
     parser.add_argument("--config", help="Path to YAML configuration file")
     parser.add_argument("--fail-fast", action="store_true", help="Abort on first error")
