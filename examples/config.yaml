@@ -1,0 +1,12 @@
+# Azure DevOps Backup Utility – example configuration
+#
+# Usage: python src/cli.py --config examples/config.yaml
+
+org-url: https://dev.azure.com/your-org
+projects: all
+include: org,projects,git,boards,pipelines,permissions
+max-items: 500
+compress: repos
+output-dir: ./ado-backup
+fail-fast: false
+verbose: false

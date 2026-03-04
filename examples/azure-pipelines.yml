@@ -1,0 +1,31 @@
+# Azure DevOps Pipeline – ADO Backup Utility
+trigger:
+  - main
+
+pool:
+  vmImage: "ubuntu-latest"
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.10"
+
+  - script: |
+      az extension add -n azure-devops -y
+    displayName: "Install Azure DevOps CLI extension"
+
+  - script: |
+      export PYTHONPATH=src
+      python src/cli.py \
+        --output-dir $(Build.ArtifactStagingDirectory)/ado-backup \
+        --max-items 500
+    displayName: "Run ADO Backup"
+    env:
+      AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+      AZURE_DEVOPS_ORG_URL: $(System.CollectionUri)
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: "$(Build.ArtifactStagingDirectory)/ado-backup"
+      ArtifactName: "ado-backup"
+    displayName: "Publish Backup Artifact"

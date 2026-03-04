@@ -1,0 +1,72 @@
+# GitHub Actions – Backup & upload to Azure Blob Storage
+#
+# Prerequisites:
+#   1. An Azure Storage Account with a container (e.g. "ado-backups").
+#   2. GitHub repository secrets:
+#        ADO_PAT                   – Azure DevOps PAT (or rely on az CLI auth)
+#        ADO_ORG_URL               – e.g. https://dev.azure.com/your-org
+#        AZURE_STORAGE_ACCOUNT     – storage account name
+#        AZURE_STORAGE_CONTAINER   – container name
+#        AZURE_STORAGE_KEY         – storage account access key
+#                                    (or use OIDC / federated credentials instead)
+
+name: ADO Backup → Azure Blob
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 0"   # Weekly on Sunday at 02:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Azure CLI & DevOps extension
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add -n azure-devops -y
+
+      - name: Run ADO Backup
+        env:
+          AZURE_DEVOPS_EXT_PAT: ${{ secrets.ADO_PAT }}
+          AZURE_DEVOPS_ORG_URL: ${{ secrets.ADO_ORG_URL }}
+        run: |
+          export PYTHONPATH=src
+          python src/cli.py \
+            --output-dir ${{ github.workspace }}/ado-backup \
+            --compress all \
+            --max-items 500
+
+      - name: Upload backup to Azure Blob Storage
+        env:
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        run: |
+          ARCHIVE=$(find ${{ github.workspace }}/ado-backup -name '*.tar.gz' | head -1)
+          DATESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          if [ -n "$ARCHIVE" ]; then
+            az storage blob upload \
+              --account-name "${{ secrets.AZURE_STORAGE_ACCOUNT }}" \
+              --container-name "${{ secrets.AZURE_STORAGE_CONTAINER }}" \
+              --account-key "$AZURE_STORAGE_KEY" \
+              --name "${DATESTAMP}/$(basename $ARCHIVE)" \
+              --file "$ARCHIVE" \
+              --overwrite
+          else
+            az storage blob upload-batch \
+              --account-name "${{ secrets.AZURE_STORAGE_ACCOUNT }}" \
+              --destination "${{ secrets.AZURE_STORAGE_CONTAINER }}" \
+              --account-key "$AZURE_STORAGE_KEY" \
+              --source "${{ github.workspace }}/ado-backup" \
+              --overwrite
+          fi
+          echo "Backup uploaded to Azure Blob Storage"

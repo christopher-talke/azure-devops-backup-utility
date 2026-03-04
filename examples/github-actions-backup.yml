@@ -1,0 +1,40 @@
+name: ADO Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 0"  # Weekly on Sunday at 02:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Azure CLI & DevOps extension
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add -n azure-devops -y
+
+      - name: Run ADO Backup
+        env:
+          AZURE_DEVOPS_EXT_PAT: ${{ secrets.ADO_PAT }}  # optional if az CLI is already authenticated
+          AZURE_DEVOPS_ORG_URL: ${{ secrets.ADO_ORG_URL }}
+        run: |
+          export PYTHONPATH=src
+          python src/cli.py \
+            --output-dir ${{ github.workspace }}/ado-backup \
+            --max-items 500
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ado-backup
+          path: ado-backup/
+          retention-days: 30
