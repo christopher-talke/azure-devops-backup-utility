@@ -180,6 +180,30 @@ ado-backup/
 - Work item attachments (binary download) is not yet implemented
 - Incremental (`--since`) filtering depends on API support per entity
 
+## Disaster Recovery
+
+See **[DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)** for a full step-by-step guide on how to restore your Azure DevOps organisation from a backup.
+
+Quick reference of what is fully recoverable vs. manual:
+
+| Component | Recoverable? |
+|---|---|
+| Git repositories (all history, branches, tags) | ✅ Fully automatable |
+| Pipeline YAML definitions (stored in repos) | ✅ Via git restore |
+| Work items (fields, current state) | ⚠️ Partial (IDs change, history lost) |
+| Variable groups (non-secret values) | ⚠️ Partial (secrets must be re-entered) |
+| Service connections | ❌ Manual (credentials were redacted) |
+| Users, groups, permissions | ❌ Manual (reference data only) |
+
+To restore all Git repositories in a project from a backup snapshot:
+
+```bash
+bash examples/restore-repos.sh \
+  --backup-dir  ./ado-backup/dev.azure.com/<org>/<timestamp>/projects/<project>/git \
+  --target-org  https://dev.azure.com/<target-org> \
+  --project     <project-name>
+```
+
 ## Security & Redaction
 
 - The PAT is **never** logged or persisted
@@ -214,6 +238,7 @@ Ready-to-use pipeline definitions are in the [`examples/`](examples/) folder:
 | [`github-actions-blob-storage.yml`](examples/github-actions-blob-storage.yml) | GitHub Actions | Azure Blob Storage |
 | [`github-actions-s3.yml`](examples/github-actions-s3.yml) | GitHub Actions | AWS S3 |
 | [`config.yaml`](examples/config.yaml) | — | Example YAML config |
+| [`restore-repos.sh`](examples/restore-repos.sh) | Shell | Restore Git repositories |
 
 Copy the relevant file into your project and adjust variables/secrets as described in the file comments.
 
@@ -234,6 +259,7 @@ examples/
   github-actions-blob-storage.yml    # GitHub Actions → Azure Blob Storage
   github-actions-s3.yml              # GitHub Actions → AWS S3
   config.yaml                        # Example YAML configuration
+  restore-repos.sh                   # Restore Git repositories from backup
 src/
   __init__.py          # Package init
   __main__.py          # Entry point
