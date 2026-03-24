@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 import azcli
+import redact
 import writers
 from inventory import Inventory
 from paths import BackupPaths
@@ -38,7 +39,7 @@ def backup_permissions(
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = meta_dir / "security_namespaces.json"
-        writers.write_json(out_path, items)
+        writers.write_json(out_path, redact.redact(items))
         count = len(items) if isinstance(items, list) else 1
         inventory.add("permissions", f"{project_name}/security_namespaces", str(out_path), count)
     except Exception as exc:
@@ -54,7 +55,7 @@ def backup_permissions(
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = meta_dir / "permissions_acl.json"
-        writers.write_json(out_path, items)
+        writers.write_json(out_path, redact.redact(items))
         count = len(items) if isinstance(items, list) else 1
         inventory.add("permissions", f"{project_name}/permissions_acl", str(out_path), count)
     except Exception as exc:

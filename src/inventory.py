@@ -33,7 +33,10 @@ class Inventory:
             }
         )
 
-    def add_error(self, category: str, name: str, error: str, detail: str = "") -> None:
+    def add_error(self, category: str, name: str, error: str, detail: str = "", *, pat: str = "") -> None:
+        if pat:
+            error = error.replace(pat, "***")
+            detail = detail.replace(pat, "***")
         record = {
             "category": category,
             "name": name,

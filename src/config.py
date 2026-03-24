@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields as dataclass_fields
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +72,9 @@ class BackupConfig:
     verbose: bool = False
     timeout: int = 120
 
+    # Allowed compress values
+    _VALID_COMPRESS = ("", "repos", "project", "all")
+
     @property
     def active_components(self) -> set[str]:
         return self.include - self.exclude
@@ -82,6 +85,18 @@ class BackupConfig:
             errors.append("Organization URL is required (--org-url or AZURE_DEVOPS_ORG_URL)")
         if not self.pat:
             logger.info("No PAT provided – relying on az CLI authentication (e.g. System.AccessToken in pipelines)")
+        if self.compress and self.compress not in self._VALID_COMPRESS:
+            errors.append(f"Invalid --compress value '{self.compress}'; must be one of: repos, project, all")
+        invalid_inc = self.include - ALL_COMPONENTS
+        if invalid_inc:
+            errors.append(f"Unknown --include components: {', '.join(sorted(invalid_inc))}")
+        invalid_exc = self.exclude - ALL_COMPONENTS
+        if invalid_exc:
+            errors.append(f"Unknown --exclude components: {', '.join(sorted(invalid_exc))}")
+        # Reject path traversal in output_dir
+        resolved = Path(self.output_dir).resolve()
+        if ".." in Path(self.output_dir).parts:
+            errors.append(f"output_dir must not contain '..': {self.output_dir}")
         return errors
 
 
@@ -93,18 +108,21 @@ def build_config(args: Any | None = None, yaml_path: Path | None = None) -> Back
     cfg = BackupConfig()
 
     # 1. YAML file
+    _allowed_fields = {f.name for f in dataclass_fields(BackupConfig)}
     if yaml_path and yaml_path.exists():
         ydata = load_yaml(yaml_path)
         for key, value in ydata.items():
             key_under = key.replace("-", "_")
-            if hasattr(cfg, key_under):
-                current = getattr(cfg, key_under)
-                if isinstance(current, set) and isinstance(value, list):
-                    setattr(cfg, key_under, set(value))
-                elif isinstance(current, list) and isinstance(value, str):
-                    setattr(cfg, key_under, [v.strip() for v in value.split(",") if v.strip()])
-                else:
-                    setattr(cfg, key_under, value)
+            if key_under not in _allowed_fields:
+                logger.warning("Ignoring unknown YAML key: %s", key)
+                continue
+            current = getattr(cfg, key_under)
+            if isinstance(current, set) and isinstance(value, list):
+                setattr(cfg, key_under, set(value))
+            elif isinstance(current, list) and isinstance(value, str):
+                setattr(cfg, key_under, [v.strip() for v in value.split(",") if v.strip()])
+            else:
+                setattr(cfg, key_under, value)
 
     if cfg.pat:
         logger.warning(

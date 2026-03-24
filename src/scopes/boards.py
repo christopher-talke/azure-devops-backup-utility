@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 import azcli
+import redact
 import writers
 from inventory import Inventory
 from paths import BackupPaths
@@ -51,7 +52,7 @@ def _export_queries(
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = boards_dir / "queries.json"
-        writers.write_json(out_path, items)
+        writers.write_json(out_path, redact.redact(items))
         count = len(items) if isinstance(items, list) else 1
         inventory.add("boards", f"{project_name}/queries", str(out_path), count)
     except Exception as exc:
@@ -78,7 +79,7 @@ def _export_tags(
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = boards_dir / "tags.json"
-        writers.write_json(out_path, items)
+        writers.write_json(out_path, redact.redact(items))
         count = len(items) if isinstance(items, list) else 1
         inventory.add("boards", f"{project_name}/tags", str(out_path), count)
     except Exception as exc:
@@ -146,7 +147,10 @@ def _export_work_items(
             if isinstance(items, list):
                 for item in items:
                     wi_id = item.get("id", "unknown")
-                    writers.write_json(wi_dir / f"{wi_id}.json", item)
+                    if not isinstance(wi_id, int):
+                        logger.warning("Skipping work item with non-integer id: %r", wi_id)
+                        continue
+                    writers.write_json(wi_dir / f"{wi_id}.json", redact.redact(item))
         except Exception as exc:
             logger.warning("Failed to export work items batch starting at %d: %s", batch_start, exc)
             inventory.add_error("boards", f"{project_name}/work_items/batch_{batch_start}", str(exc))

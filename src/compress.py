@@ -16,6 +16,14 @@ def compress_directory(source: Path, dest_archive: Path) -> Path:
     After successful compression the original directory is removed.
     Returns the path to the created archive.
     """
+    # Safety: ensure source doesn't escape the archive destination's parent tree
+    try:
+        source.resolve().relative_to(dest_archive.parent.resolve())
+    except ValueError:
+        raise ValueError(
+            f"Refusing to compress/delete '{source}': it is not under '{dest_archive.parent}'"
+        )
+
     if not str(dest_archive).endswith(".tar.gz"):
         dest_archive = Path(str(dest_archive) + ".tar.gz")
     dest_archive.parent.mkdir(parents=True, exist_ok=True)

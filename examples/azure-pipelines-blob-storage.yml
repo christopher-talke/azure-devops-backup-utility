@@ -8,8 +8,7 @@
 # The pipeline runs the backup, compresses the output, then uploads
 # the archive to Blob Storage using the AzureCLI task.
 
-trigger:
-  - main
+trigger: none  # Use schedules instead of push triggers for backup pipelines
 
 schedules:
   - cron: "0 2 * * 0"

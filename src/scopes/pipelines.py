@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 import azcli
+import redact
 import writers
 from inventory import Inventory
 from paths import BackupPaths
@@ -45,7 +46,7 @@ def _export_pipelines(
         data = azcli.az("pipelines", "list", org_url=org_url, project=project_name)
         items = data if isinstance(data, list) else (data.get("value", []) if isinstance(data, dict) else [])
         out_path = pipe_dir / "pipelines.json"
-        writers.write_json(out_path, items)
+        writers.write_json(out_path, redact.redact(items))
         inventory.add("pipelines", f"{project_name}/pipelines", str(out_path), len(items))
         logger.info("Exported %d pipeline definitions for '%s'", len(items), project_name)
     except Exception as exc:
@@ -77,7 +78,7 @@ def _export_runs_index(
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = pipe_dir / "runs_index.json"
-        writers.write_json(out_path, items)
+        writers.write_json(out_path, redact.redact(items))
         count = len(items) if isinstance(items, list) else 1
         inventory.add("pipelines", f"{project_name}/runs_index", str(out_path), count)
     except Exception as exc:

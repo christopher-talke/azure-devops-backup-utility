@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -119,7 +120,7 @@ def _run_az(
         # Detect throttling
         if "429" in stderr or "TooManyRequests" in stderr:
             raise AzCliThrottled(f"Throttled: {stderr}", result.returncode, stderr)
-        if re.search(r"5\d{2}", stderr):
+        if re.search(r"\b5\d{2}\b", stderr):
             raise AzCliThrottled(f"Server error: {stderr}", result.returncode, stderr)
         raise AzCliError(
             f"az command failed (rc={result.returncode}): {stderr}",
@@ -232,16 +233,27 @@ def git_clone(
     pat: str = "",
     timeout: int = 600,
 ) -> None:
-    """Clone a Git repository to *dest* using the Git CLI."""
-    # Inject PAT into URL for authentication
-    if pat and "://" in repo_url:
-        scheme, rest = repo_url.split("://", 1)
-        auth_url = f"{scheme}://x-token:{pat}@{rest}"
-    else:
-        auth_url = repo_url
+    """Clone a Git repository to *dest* using the Git CLI.
 
+    The PAT is passed via ``GIT_CONFIG_*`` environment variables so that it
+    never appears in the process argument list (visible in ``/proc/<pid>/cmdline``
+    or ``ps`` output).
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["git", "clone", "--mirror", auth_url, str(dest)]
+    cmd = ["git", "clone", "--mirror", repo_url, str(dest)]
+
+    # Pass PAT via git config env vars — keeps creds out of argv and ps output
+    env = os.environ.copy()
+    if pat and "://" in repo_url:
+        token_b64 = base64.b64encode(f"x-token:{pat}".encode()).decode()
+        # Strip path from URL to build the config scope key
+        scheme, rest = repo_url.split("://", 1)
+        host_part = rest.split("/")[0]
+        scope_url = f"{scheme}://{host_part}/"
+        env["GIT_CONFIG_COUNT"] = "1"
+        env["GIT_CONFIG_KEY_0"] = f"http.{scope_url}.extraheader"
+        env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {token_b64}"
+
     # Log without secret
     logger.info("Cloning %s -> %s", repo_url, dest)
     result = subprocess.run(
@@ -249,11 +261,19 @@ def git_clone(
         capture_output=True,
         text=True,
         timeout=timeout,
+        env=env,
     )
     if result.returncode != 0:
-        safe_stderr = result.stderr.replace(pat, "***") if pat else result.stderr
+        safe_stderr = _scrub_pat(result.stderr, pat)
         raise AzCliError(
             f"git clone failed (rc={result.returncode}): {safe_stderr.strip()}",
             result.returncode,
             safe_stderr.strip(),
         )
+
+
+def _scrub_pat(text: str, pat: str) -> str:
+    """Remove any occurrence of the PAT from *text*."""
+    if not pat:
+        return text
+    return text.replace(pat, "***")

@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 import azcli
+import redact
 import writers
 from inventory import Inventory
 from paths import BackupPaths
@@ -38,7 +39,7 @@ def backup_git(
 
     # Write repos index
     git_dir = paths.git_dir(project_name)
-    writers.write_json(git_dir / "repos.json", repos)
+    writers.write_json(git_dir / "repos.json", redact.redact(repos))
     inventory.add("git", f"{project_name}/repos", str(git_dir / "repos.json"), len(repos))
 
     for i, repo in enumerate(repos):
@@ -104,7 +105,7 @@ def _export_repo_metadata(
         )
         items = branches.get("value", branches) if isinstance(branches, dict) else branches
         dest = paths.repo_dir(project_name, repo_name)
-        writers.write_json(dest.parent / f"{repo_name}_branches.json", items)
+        writers.write_json(dest.parent / f"{repo_name}_branches.json", redact.redact(items))
     except Exception as exc:
         logger.debug("Could not export branches for '%s': %s", repo_name, exc)
 
@@ -117,6 +118,6 @@ def _export_repo_metadata(
         )
         items = policies.get("value", policies) if isinstance(policies, dict) else policies
         dest = paths.repo_dir(project_name, repo_name)
-        writers.write_json(dest.parent / f"{repo_name}_policies.json", items)
+        writers.write_json(dest.parent / f"{repo_name}_policies.json", redact.redact(items))
     except Exception as exc:
         logger.debug("Could not export policies for '%s': %s", repo_name, exc)

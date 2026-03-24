@@ -1,6 +1,13 @@
 # Azure DevOps Pipeline – ADO Backup Utility
-trigger:
-  - main
+trigger: none  # Use schedules instead of push triggers for backup pipelines
+
+schedules:
+  - cron: "0 2 * * 0"
+    displayName: Weekly Sunday 02:00 UTC
+    branches:
+      include:
+        - main
+    always: true
 
 pool:
   vmImage: "ubuntu-latest"

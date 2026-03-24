@@ -57,7 +57,7 @@ def run_backup(cfg: BackupConfig) -> int:
             org.backup_org(bp, inv, cfg.org_url, dry_run=cfg.dry_run)
         except Exception as exc:
             logger.error("Organisation backup failed: %s", exc)
-            inv.add_error("org", "org", str(exc))
+            inv.add_error("org", "org", str(exc), pat=cfg.pat)
             if cfg.fail_fast:
                 _write_indexes(bp, inv)
                 return 1
@@ -77,7 +77,7 @@ def run_backup(cfg: BackupConfig) -> int:
                 logger.info("Found %d project(s) to back up", len(project_list))
         except Exception as exc:
             logger.error("Failed to list projects: %s", exc)
-            inv.add_error("projects", "list", str(exc))
+            inv.add_error("projects", "list", str(exc), pat=cfg.pat)
             if cfg.fail_fast:
                 _write_indexes(bp, inv)
                 return 1
@@ -90,8 +90,8 @@ def run_backup(cfg: BackupConfig) -> int:
         if not cfg.dry_run:
             try:
                 azcli.configure_defaults(cfg.org_url, pname)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("configure_defaults failed for '%s': %s", pname, exc)
 
         if "projects" in active:
             _safe_call(
@@ -99,7 +99,7 @@ def run_backup(cfg: BackupConfig) -> int:
                 bp, inv, cfg.org_url, pname,
                 dry_run=cfg.dry_run,
                 fail_fast=cfg.fail_fast,
-                inv=inv, category="projects", name=pname,
+                inv=inv, category="projects", name=pname, pat=cfg.pat,
             )
 
         if "git" in active:
@@ -108,7 +108,7 @@ def run_backup(cfg: BackupConfig) -> int:
                 bp, inv, cfg.org_url, pname, cfg.pat,
                 dry_run=cfg.dry_run, max_items=cfg.max_items,
                 fail_fast=cfg.fail_fast,
-                inv=inv, category="git", name=pname,
+                inv=inv, category="git", name=pname, pat=cfg.pat,
             )
 
         if "boards" in active:
@@ -117,7 +117,7 @@ def run_backup(cfg: BackupConfig) -> int:
                 bp, inv, cfg.org_url, pname,
                 dry_run=cfg.dry_run, max_items=cfg.max_items,
                 fail_fast=cfg.fail_fast,
-                inv=inv, category="boards", name=pname,
+                inv=inv, category="boards", name=pname, pat=cfg.pat,
             )
 
         if "pipelines" in active:
@@ -126,7 +126,7 @@ def run_backup(cfg: BackupConfig) -> int:
                 bp, inv, cfg.org_url, pname,
                 dry_run=cfg.dry_run, max_items=cfg.max_items,
                 fail_fast=cfg.fail_fast,
-                inv=inv, category="pipelines", name=pname,
+                inv=inv, category="pipelines", name=pname, pat=cfg.pat,
             )
 
         if "permissions" in active:
@@ -135,7 +135,7 @@ def run_backup(cfg: BackupConfig) -> int:
                 bp, inv, cfg.org_url, pname,
                 dry_run=cfg.dry_run,
                 fail_fast=cfg.fail_fast,
-                inv=inv, category="permissions", name=pname,
+                inv=inv, category="permissions", name=pname, pat=cfg.pat,
             )
 
     _write_indexes(bp, inv)
@@ -155,14 +155,14 @@ def run_backup(cfg: BackupConfig) -> int:
 
 
 def _safe_call(func: Any, *args: Any, fail_fast: bool = False, inv: Inventory | None = None,
-               category: str = "", name: str = "", **kwargs: Any) -> None:
+               category: str = "", name: str = "", pat: str = "", **kwargs: Any) -> None:
     """Call *func* and catch exceptions unless fail_fast is set."""
     try:
         func(*args, **kwargs)
     except Exception as exc:
         logger.error("%s backup failed for '%s': %s", category, name, exc)
         if inv:
-            inv.add_error(category, name, str(exc))
+            inv.add_error(category, name, str(exc), pat=pat)
         if fail_fast:
             raise
 

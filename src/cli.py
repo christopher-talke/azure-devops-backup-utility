@@ -43,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
         level=level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%SZ",
-        stream=sys.stdout,
+        stream=sys.stderr,
     )
 
     yaml_path = Path(args.config) if args.config else None

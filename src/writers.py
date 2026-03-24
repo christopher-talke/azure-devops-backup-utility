@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -11,9 +13,21 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _secure_mkdir(path: Path) -> None:
+    """Create directory tree with restricted permissions (0o700 on Unix)."""
+    path.mkdir(parents=True, exist_ok=True)
+    if sys.platform != "win32":
+        # Walk up and tighten any directories we just created
+        for parent in [path, *path.parents]:
+            try:
+                os.chmod(parent, 0o700)
+            except OSError:
+                break  # reached a dir we don't own
+
+
 def write_json(path: Path, data: Any) -> None:
     """Atomically write *data* as pretty-printed JSON to *path*."""
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _secure_mkdir(path.parent)
     tmp_fd, tmp_path = tempfile.mkstemp(
         dir=path.parent, suffix=".tmp", prefix=path.stem
     )
@@ -30,7 +44,7 @@ def write_json(path: Path, data: Any) -> None:
 
 def write_binary(path: Path, data: bytes) -> None:
     """Atomically write binary *data* to *path*."""
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _secure_mkdir(path.parent)
     tmp_fd, tmp_path = tempfile.mkstemp(
         dir=path.parent, suffix=".tmp", prefix=path.stem
     )
@@ -46,7 +60,7 @@ def write_binary(path: Path, data: bytes) -> None:
 
 def append_jsonl(path: Path, record: dict[str, Any]) -> None:
     """Append a single JSON record to a JSONL file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _secure_mkdir(path.parent)
     with open(path, "a", encoding="utf-8") as fh:
         json.dump(record, fh, sort_keys=True, default=str)
         fh.write("\n")

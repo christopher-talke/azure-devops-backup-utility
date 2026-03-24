@@ -8,8 +8,13 @@ from urllib.parse import urlparse
 
 
 def safe_name(name: str) -> str:
-    """Sanitise a name for safe use as a directory or file component."""
-    return re.sub(r"[^\w\-.]", "_", name)
+    """Sanitise a name for safe use as a directory or file component.
+
+    Strips leading/trailing dots to prevent ``..`` path traversal and
+    replaces any remaining unsafe characters with underscores.
+    """
+    cleaned = re.sub(r"[^\w\-.]", "_", name).strip(".")
+    return cleaned or "_"
 
 
 def parse_org_url(org_url: str) -> tuple[str, str]:
