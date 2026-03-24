@@ -106,6 +106,12 @@ def build_config(args: Any | None = None, yaml_path: Path | None = None) -> Back
                 else:
                     setattr(cfg, key_under, value)
 
+    if cfg.pat:
+        logger.warning(
+            "PAT found in YAML config file. Storing credentials in config files is "
+            "discouraged. Use the AZURE_DEVOPS_EXT_PAT environment variable instead."
+        )
+
     # 2. Environment variables
     if os.environ.get("AZURE_DEVOPS_ORG_URL"):
         cfg.org_url = os.environ["AZURE_DEVOPS_ORG_URL"]
@@ -117,7 +123,15 @@ def build_config(args: Any | None = None, yaml_path: Path | None = None) -> Back
     if os.environ.get("ADO_BACKUP_OUTPUT_DIR"):
         cfg.output_dir = os.environ["ADO_BACKUP_OUTPUT_DIR"]
     if os.environ.get("ADO_BACKUP_TIMEOUT"):
-        cfg.timeout = int(os.environ["ADO_BACKUP_TIMEOUT"])
+        _raw_timeout = os.environ["ADO_BACKUP_TIMEOUT"]
+        try:
+            cfg.timeout = int(_raw_timeout)
+        except ValueError:
+            logger.warning(
+                "ADO_BACKUP_TIMEOUT=%r is not a valid integer; using default (%ds)",
+                _raw_timeout,
+                cfg.timeout,
+            )
 
     # 3. CLI args (argparse namespace)
     if args is not None:

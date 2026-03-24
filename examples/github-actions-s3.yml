@@ -34,10 +34,9 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install Azure CLI & DevOps extension
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-          az extension add -n azure-devops -y
+      - name: Install Azure DevOps extension
+        # azure-cli is pre-installed on github-hosted ubuntu-latest runners
+        run: az extension add -n azure-devops -y
 
       - name: Run ADO Backup
         env:

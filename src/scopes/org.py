@@ -67,6 +67,7 @@ def _export(
             api_version=api_version,
         )
         items = data.get(list_key, data) if isinstance(data, dict) else data
+        items = redact.redact(items)
         out_path = paths.org_file(filename)
         writers.write_json(out_path, items)
         count = len(items) if isinstance(items, list) else 1
@@ -153,6 +154,7 @@ def _export_permissions_acl(
             org_url=org_url,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
+        items = redact.redact(items)
         out_path = paths.org_file(filename)
         writers.write_json(out_path, items)
         count = len(items) if isinstance(items, list) else 1

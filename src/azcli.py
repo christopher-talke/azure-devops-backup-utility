@@ -71,7 +71,12 @@ def ensure_devops_extension() -> None:
 
 
 def configure_defaults(org_url: str, project: str | None = None) -> None:
-    """Set az devops defaults for organisation and optionally project."""
+    """Set az devops defaults for organisation and optionally project.
+
+    NOTE: This writes to ~/.azure/config and persists after the process exits.
+    On ephemeral CI/CD runners this is harmless. On shared or long-lived machines,
+    run ``az devops configure --defaults organization= project=`` afterwards to clear.
+    """
     subprocess.run(
         ["az", "devops", "configure", "--defaults", f"organization={org_url}"],
         capture_output=True,
@@ -246,8 +251,9 @@ def git_clone(
         timeout=timeout,
     )
     if result.returncode != 0:
+        safe_stderr = result.stderr.replace(pat, "***") if pat else result.stderr
         raise AzCliError(
-            f"git clone failed (rc={result.returncode}): {result.stderr.strip()}",
+            f"git clone failed (rc={result.returncode}): {safe_stderr.strip()}",
             result.returncode,
-            result.stderr.strip(),
+            safe_stderr.strip(),
         )

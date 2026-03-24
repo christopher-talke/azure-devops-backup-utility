@@ -15,16 +15,11 @@ SENSITIVE_KEYS: frozenset[str] = frozenset(
         "secret",
         "token",
         "privatekey",
-        "privateKey",
         "certificate",
         "apikey",
-        "apiKey",
         "accesstoken",
-        "accessToken",
         "connectionstring",
-        "connectionString",
         "securefileid",
-        "secureFileId",
     }
 )
 
@@ -37,9 +32,11 @@ SENSITIVE_PATHS: frozenset[str] = frozenset(
 
 REDACTED = "***REDACTED***"
 
+_SENSITIVE_KEYS_LOWER: frozenset[str] = frozenset(k.lower() for k in SENSITIVE_KEYS)
+
 
 def _is_sensitive_key(key: str) -> bool:
-    return key.lower() in {k.lower() for k in SENSITIVE_KEYS}
+    return key.lower() in _SENSITIVE_KEYS_LOWER
 
 
 def redact_dict(data: Any, *, _path: str = "") -> Any:

@@ -108,5 +108,39 @@ class TestBuildConfig(unittest.TestCase):
                     os.environ[k] = v
 
 
+class TestBuildConfigTimeout(unittest.TestCase):
+    def _set_env(self, key, value):
+        """Helper to set an env var and return the original value."""
+        original = os.environ.get(key)
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+        return original
+
+    def _restore_env(self, key, original):
+        if original is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = original
+
+    def test_valid_timeout(self):
+        original = self._set_env("ADO_BACKUP_TIMEOUT", "300")
+        try:
+            cfg = build_config()
+            self.assertEqual(cfg.timeout, 300)
+        finally:
+            self._restore_env("ADO_BACKUP_TIMEOUT", original)
+
+    def test_invalid_timeout_uses_default(self):
+        """A non-integer ADO_BACKUP_TIMEOUT should not raise; default (120) is kept."""
+        original = self._set_env("ADO_BACKUP_TIMEOUT", "not-a-number")
+        try:
+            cfg = build_config()
+            self.assertEqual(cfg.timeout, 120)
+        finally:
+            self._restore_env("ADO_BACKUP_TIMEOUT", original)
+
+
 if __name__ == "__main__":
     unittest.main()

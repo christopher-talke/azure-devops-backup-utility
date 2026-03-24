@@ -2,7 +2,7 @@
 
 import unittest
 
-from redact import REDACTED, redact
+from redact import REDACTED, _SENSITIVE_KEYS_LOWER, redact
 
 
 class TestRedact(unittest.TestCase):
@@ -54,6 +54,18 @@ class TestRedact(unittest.TestCase):
         data = {"password": "secret"}
         redact(data)
         self.assertEqual(data["password"], "secret")
+
+
+class TestSensitiveKeysLower(unittest.TestCase):
+    def test_pre_computed_set_matches_case_insensitive(self):
+        """_SENSITIVE_KEYS_LOWER must catch common variants regardless of case."""
+        for key in ("ApiKey", "ACCESSTOKEN", "ConnectionString", "PrivateKey", "SecureFileId"):
+            self.assertIn(key.lower(), _SENSITIVE_KEYS_LOWER, f"{key!r} not in _SENSITIVE_KEYS_LOWER")
+
+    def test_no_camel_case_duplicates(self):
+        """All entries in _SENSITIVE_KEYS_LOWER must already be lowercase (no duplicates)."""
+        for key in _SENSITIVE_KEYS_LOWER:
+            self.assertEqual(key, key.lower(), f"{key!r} has uppercase letters")
 
 
 if __name__ == "__main__":

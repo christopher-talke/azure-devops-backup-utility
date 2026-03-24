@@ -2,9 +2,10 @@
 
 import subprocess
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from azcli import AzCliError, AzCliThrottled, _mask_pat, _run_az
+from azcli import AzCliError, AzCliThrottled, _mask_pat, _run_az, git_clone
 
 
 class TestMaskPat(unittest.TestCase):
@@ -68,6 +69,40 @@ class TestRunAz(unittest.TestCase):
         )
         result = _run_az(["az", "test"], parse_json=False)
         self.assertEqual(result, "plain text output")
+
+
+class TestGitClonePATScrubbing(unittest.TestCase):
+    @patch("azcli.subprocess.run")
+    def test_pat_scrubbed_from_error_message(self, mock_run):
+        """PAT must not appear in AzCliError when git clone fails."""
+        secret = "super_secret_token"
+        mock_run.return_value = MagicMock(
+            returncode=128,
+            stdout="",
+            stderr=f"fatal: repository 'https://x-token:{secret}@dev.azure.com/org/repo' not found",
+        )
+        with self.assertRaises(AzCliError) as ctx:
+            git_clone("https://dev.azure.com/org/repo", Path("/tmp/dest"), pat=secret)
+        self.assertNotIn(secret, str(ctx.exception))
+        self.assertNotIn(secret, ctx.exception.stderr)
+
+    @patch("azcli.subprocess.run")
+    def test_no_pat_error_message_unchanged(self, mock_run):
+        """When no PAT is provided, stderr is passed through as-is."""
+        mock_run.return_value = MagicMock(
+            returncode=128,
+            stdout="",
+            stderr="fatal: repository not found",
+        )
+        with self.assertRaises(AzCliError) as ctx:
+            git_clone("https://dev.azure.com/org/repo", Path("/tmp/dest"))
+        self.assertIn("fatal: repository not found", str(ctx.exception))
+
+    @patch("azcli.subprocess.run")
+    def test_successful_clone_no_error(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        # Should not raise
+        git_clone("https://dev.azure.com/org/repo", Path("/tmp/dest"), pat="mytoken")
 
 
 if __name__ == "__main__":
