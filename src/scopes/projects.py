@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 import azcli
+import redact
 import writers
 from inventory import Inventory
 from paths import BackupPaths
@@ -27,6 +28,7 @@ def backup_project_metadata(
     org_url: str,
     project_name: str,
     *,
+    pat: str = "",
     dry_run: bool = False,
 ) -> None:
     """Export project metadata: project properties, teams, areas, iterations, permissions."""
@@ -34,22 +36,22 @@ def backup_project_metadata(
     meta_dir = paths.metadata_dir(project_name)
 
     # Project properties
-    _export_project(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run)
+    _export_project(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat)
     # Teams
-    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run,
+    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat,
                    label="teams", area="core", resource="teams", list_key="value")
     # Areas
-    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run,
+    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat,
                    label="areas", area="wit", resource="classificationNodes",
                    route_parameters={"structureGroup": "areas"},
                    query_parameters={"$depth": "10"})
     # Iterations
-    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run,
+    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat,
                    label="iterations", area="wit", resource="classificationNodes",
                    route_parameters={"structureGroup": "iterations"},
                    query_parameters={"$depth": "10"})
     # Project-level permissions/ACL
-    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run,
+    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat,
                    label="permissions_acl", area="security", resource="accesscontrollists")
 
 
@@ -61,6 +63,7 @@ def _export_project(
     meta_dir: Any,
     *,
     dry_run: bool,
+    pat: str = "",
 ) -> None:
     if dry_run:
         logger.info("[DRY-RUN] Would export project.json for %s", project_name)
@@ -68,12 +71,12 @@ def _export_project(
     try:
         data = azcli.az("devops", "project", "show", "--project", project_name, org_url=org_url)
         out_path = meta_dir / "project.json"
-        writers.write_json(out_path, data)
+        writers.write_json(out_path, redact.redact(data))
         inventory.add("project", project_name, str(out_path))
         logger.info("Exported project metadata for '%s'", project_name)
     except Exception as exc:
         logger.warning("Failed to export project metadata for '%s': %s", project_name, exc)
-        inventory.add_error("project", project_name, str(exc))
+        inventory.add_error("project", project_name, str(exc), pat=pat)
 
 
 def _export_invoke(
@@ -84,6 +87,7 @@ def _export_invoke(
     meta_dir: Any,
     *,
     dry_run: bool,
+    pat: str = "",
     label: str,
     area: str,
     resource: str,
@@ -107,10 +111,10 @@ def _export_invoke(
         if list_key and isinstance(data, dict):
             items = data.get(list_key, data)
         out_path = meta_dir / filename
-        writers.write_json(out_path, items)
+        writers.write_json(out_path, redact.redact(items))
         count = len(items) if isinstance(items, list) else 1
         inventory.add("project", f"{project_name}/{label}", str(out_path), count)
         logger.info("Exported %s for '%s'", label, project_name)
     except Exception as exc:
         logger.warning("Failed to export %s for '%s': %s", label, project_name, exc)
-        inventory.add_error("project", f"{project_name}/{label}", str(exc))
+        inventory.add_error("project", f"{project_name}/{label}", str(exc), pat=pat)

@@ -73,6 +73,15 @@ class BackupPaths:
     def pipelines_dir(self, project: str) -> Path:
         return self.project_dir(project) / "pipelines"
 
+    def pull_requests_dir(self, project: str) -> Path:
+        return self.project_dir(project) / "pull_requests"
+
+    def artifacts_dir(self, project: str) -> Path:
+        return self.project_dir(project) / "artifacts"
+
+    def dashboards_dir(self, project: str) -> Path:
+        return self.project_dir(project) / "dashboards"
+
     # -- indexes --------------------------------------------------------------
     def inventory_file(self) -> Path:
         return self.indexes_dir / "inventory.json"

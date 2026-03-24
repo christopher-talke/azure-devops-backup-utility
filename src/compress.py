@@ -29,6 +29,16 @@ def compress_directory(source: Path, dest_archive: Path) -> Path:
     dest_archive.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(dest_archive, "w:gz") as tar:
         tar.add(str(source), arcname=source.name)
+
+    # Verify the archive is readable before deleting the source
+    try:
+        with tarfile.open(dest_archive, "r:gz") as tar:
+            tar.getmembers()
+    except (tarfile.TarError, OSError) as exc:
+        raise OSError(
+            f"Archive verification failed for '{dest_archive}': {exc}"
+        ) from exc
+
     shutil.rmtree(source)
     logger.info("Compressed '%s' → %s", source.name, dest_archive)
     return dest_archive

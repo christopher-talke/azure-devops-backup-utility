@@ -12,7 +12,10 @@ import compress as _compress
 from config import BackupConfig
 from inventory import Inventory
 from paths import BackupPaths
-from scopes import boards, git, org, permissions, pipelines, projects
+from scopes import (
+    artifacts, boards, dashboards, git, org, permissions, pipelines,
+    projects, pull_requests,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +57,7 @@ def run_backup(cfg: BackupConfig) -> int:
     # Organisation-level backup
     if "org" in active:
         try:
-            org.backup_org(bp, inv, cfg.org_url, dry_run=cfg.dry_run)
+            org.backup_org(bp, inv, cfg.org_url, pat=cfg.pat, dry_run=cfg.dry_run)
         except Exception as exc:
             logger.error("Organisation backup failed: %s", exc)
             inv.add_error("org", "org", str(exc), pat=cfg.pat)
@@ -64,7 +67,8 @@ def run_backup(cfg: BackupConfig) -> int:
 
     # Enumerate projects
     project_list: list[dict[str, Any]] = []
-    if any(c in active for c in ("projects", "git", "boards", "pipelines", "permissions")):
+    if any(c in active for c in ("projects", "git", "boards", "pipelines", "permissions",
+                                    "pull_requests", "artifacts", "dashboards")):
         try:
             if cfg.dry_run:
                 logger.info("[DRY-RUN] Would list projects")
@@ -105,7 +109,7 @@ def run_backup(cfg: BackupConfig) -> int:
         if "git" in active:
             _safe_call(
                 git.backup_git,
-                bp, inv, cfg.org_url, pname, cfg.pat,
+                bp, inv, cfg.org_url, pname,
                 dry_run=cfg.dry_run, max_items=cfg.max_items,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="git", name=pname, pat=cfg.pat,
@@ -115,7 +119,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 boards.backup_boards,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="boards", name=pname, pat=cfg.pat,
             )
@@ -124,7 +128,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 pipelines.backup_pipelines,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="pipelines", name=pname, pat=cfg.pat,
             )
@@ -136,6 +140,33 @@ def run_backup(cfg: BackupConfig) -> int:
                 dry_run=cfg.dry_run,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="permissions", name=pname, pat=cfg.pat,
+            )
+
+        if "pull_requests" in active:
+            _safe_call(
+                pull_requests.backup_pull_requests,
+                bp, inv, cfg.org_url, pname,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since,
+                fail_fast=cfg.fail_fast,
+                inv=inv, category="pull_requests", name=pname, pat=cfg.pat,
+            )
+
+        if "artifacts" in active:
+            _safe_call(
+                artifacts.backup_artifacts,
+                bp, inv, cfg.org_url, pname,
+                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                fail_fast=cfg.fail_fast,
+                inv=inv, category="artifacts", name=pname, pat=cfg.pat,
+            )
+
+        if "dashboards" in active:
+            _safe_call(
+                dashboards.backup_dashboards,
+                bp, inv, cfg.org_url, pname,
+                dry_run=cfg.dry_run,
+                fail_fast=cfg.fail_fast,
+                inv=inv, category="dashboards", name=pname, pat=cfg.pat,
             )
 
     _write_indexes(bp, inv)
@@ -158,7 +189,7 @@ def _safe_call(func: Any, *args: Any, fail_fast: bool = False, inv: Inventory | 
                category: str = "", name: str = "", pat: str = "", **kwargs: Any) -> None:
     """Call *func* and catch exceptions unless fail_fast is set."""
     try:
-        func(*args, **kwargs)
+        func(*args, pat=pat, **kwargs)
     except Exception as exc:
         logger.error("%s backup failed for '%s': %s", category, name, exc)
         if inv:

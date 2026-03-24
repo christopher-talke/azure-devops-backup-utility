@@ -188,42 +188,88 @@ def invoke(
     project: str = "",
     timeout: int = 120,
     max_retries: int = 3,
+    paginate: bool = True,
+    max_pages: int = 100,
+    list_key: str = "value",
 ) -> Any:
-    """Call ``az devops invoke`` for REST operations without native subcommands."""
-    cmd = [
-        "az",
-        "devops",
-        "invoke",
-        "--area",
-        area,
-        "--resource",
-        resource,
-        "--http-method",
-        http_method,
-        "--output",
-        "json",
-    ]
-    if api_version:
-        cmd.extend(["--api-version", api_version])
-    if route_parameters:
-        pairs = [f"{k}={v}" for k, v in route_parameters.items()]
-        cmd.extend(["--route-parameters", *pairs])
-    if query_parameters:
-        pairs = [f"{k}={v}" for k, v in query_parameters.items()]
-        cmd.extend(["--query-parameters", *pairs])
-    if org_url:
-        cmd.extend(["--organization", org_url])
-    if project:
-        cmd.extend(["--project", project])
+    """Call ``az devops invoke`` for REST operations without native subcommands.
 
-    return retry(
-        _run_az,
-        cmd,
-        timeout=timeout,
-        parse_json=True,
-        max_retries=max_retries,
-        retryable=(AzCliThrottled, subprocess.TimeoutExpired),
-    )
+    When *paginate* is True (the default) and the response contains a
+    ``continuationToken``, additional pages are fetched automatically up to
+    *max_pages*.  Items from each page are merged into a single list under
+    *list_key* (default ``"value"``).
+    """
+    def _single_invoke(
+        qp: dict[str, str] | None,
+    ) -> Any:
+        cmd = [
+            "az",
+            "devops",
+            "invoke",
+            "--area",
+            area,
+            "--resource",
+            resource,
+            "--http-method",
+            http_method,
+            "--output",
+            "json",
+        ]
+        if api_version:
+            cmd.extend(["--api-version", api_version])
+        if route_parameters:
+            pairs = [f"{k}={v}" for k, v in route_parameters.items()]
+            cmd.extend(["--route-parameters", *pairs])
+        if qp:
+            pairs = [f"{k}={v}" for k, v in qp.items()]
+            cmd.extend(["--query-parameters", *pairs])
+        if org_url:
+            cmd.extend(["--organization", org_url])
+        if project:
+            cmd.extend(["--project", project])
+
+        return retry(
+            _run_az,
+            cmd,
+            timeout=timeout,
+            parse_json=True,
+            max_retries=max_retries,
+            retryable=(AzCliThrottled, subprocess.TimeoutExpired),
+        )
+
+    # First page
+    result = _single_invoke(query_parameters)
+
+    if not paginate or not isinstance(result, dict):
+        return result
+
+    # Collect paginated results
+    all_items: list[Any] = []
+    items = result.get(list_key, result)
+    if isinstance(items, list):
+        all_items.extend(items)
+    else:
+        return result  # Not a paginated list response
+
+    token = result.get("continuationToken")
+    page = 1
+    while token and page < max_pages:
+        page += 1
+        qp = dict(query_parameters) if query_parameters else {}
+        qp["continuationToken"] = token
+        page_result = _single_invoke(qp)
+        if not isinstance(page_result, dict):
+            break
+        page_items = page_result.get(list_key, [])
+        if isinstance(page_items, list):
+            all_items.extend(page_items)
+        token = page_result.get("continuationToken")
+        logger.debug("Pagination: page %d fetched %d items", page, len(page_items) if isinstance(page_items, list) else 0)
+
+    # Return in the same envelope shape, minus the token
+    result[list_key] = all_items
+    result.pop("continuationToken", None)
+    return result
 
 
 def git_clone(

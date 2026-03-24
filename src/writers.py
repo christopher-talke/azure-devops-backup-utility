@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -64,3 +65,12 @@ def append_jsonl(path: Path, record: dict[str, Any]) -> None:
     with open(path, "a", encoding="utf-8") as fh:
         json.dump(record, fh, sort_keys=True, default=str)
         fh.write("\n")
+
+
+def file_hash(path: Path, algorithm: str = "sha256") -> str:
+    """Return the hex digest of *path* using the given hash algorithm."""
+    h = hashlib.new(algorithm)
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()

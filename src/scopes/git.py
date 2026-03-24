@@ -19,8 +19,8 @@ def backup_git(
     inventory: Inventory,
     org_url: str,
     project_name: str,
-    pat: str,
     *,
+    pat: str = "",
     dry_run: bool = False,
     max_items: int = 0,
 ) -> None:
@@ -31,7 +31,7 @@ def backup_git(
         repos = azcli.az("repos", "list", org_url=org_url, project=project_name)
     except Exception as exc:
         logger.warning("Failed to list repos for '%s': %s", project_name, exc)
-        inventory.add_error("git", f"{project_name}/repos", str(exc))
+        inventory.add_error("git", f"{project_name}/repos", str(exc), pat=pat)
         return
 
     if not isinstance(repos, list):
@@ -76,7 +76,7 @@ def _clone_repo(
         logger.info("Cloned repo '%s'", repo_name)
     except Exception as exc:
         logger.warning("Failed to clone repo '%s': %s", repo_name, exc)
-        inventory.add_error("git", f"{project_name}/{repo_name}", str(exc))
+        inventory.add_error("git", f"{project_name}/{repo_name}", str(exc), pat=pat)
 
 
 def _export_repo_metadata(
@@ -109,12 +109,28 @@ def _export_repo_metadata(
     except Exception as exc:
         logger.debug("Could not export branches for '%s': %s", repo_name, exc)
 
-    # Policies
+    # Tags
+    try:
+        tags = azcli.invoke(
+            "git", "refs",
+            org_url=org_url,
+            project=project_name,
+            route_parameters={"repositoryId": repo_id},
+            query_parameters={"filter": "tags/"},
+        )
+        items = tags.get("value", tags) if isinstance(tags, dict) else tags
+        dest = paths.repo_dir(project_name, repo_name)
+        writers.write_json(dest.parent / f"{repo_name}_tags.json", redact.redact(items))
+    except Exception as exc:
+        logger.debug("Could not export tags for '%s': %s", repo_name, exc)
+
+    # Policies (filtered by repository)
     try:
         policies = azcli.invoke(
             "policy", "configurations",
             org_url=org_url,
             project=project_name,
+            query_parameters={"repositoryId": repo_id},
         )
         items = policies.get("value", policies) if isinstance(policies, dict) else policies
         dest = paths.repo_dir(project_name, repo_name)

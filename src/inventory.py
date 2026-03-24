@@ -23,15 +23,21 @@ class Inventory:
         self.start_time = datetime.datetime.now(datetime.timezone.utc)
 
     def add(self, category: str, name: str, path: str, count: int = 1) -> None:
-        self.entries.append(
-            {
-                "category": category,
-                "name": name,
-                "path": path,
-                "count": count,
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            }
-        )
+        entry: dict[str, Any] = {
+            "category": category,
+            "name": name,
+            "path": path,
+            "count": count,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        # Compute SHA-256 checksum for file entries
+        file_path = Path(path)
+        if file_path.is_file():
+            try:
+                entry["sha256"] = writers.file_hash(file_path)
+            except OSError:
+                pass  # Skip hash if file cannot be read
+        self.entries.append(entry)
 
     def add_error(self, category: str, name: str, error: str, detail: str = "", *, pat: str = "") -> None:
         if pat:

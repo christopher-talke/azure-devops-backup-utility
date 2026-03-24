@@ -19,26 +19,27 @@ def backup_org(
     inventory: Inventory,
     org_url: str,
     *,
+    pat: str = "",
     dry_run: bool = False,
 ) -> None:
     """Export organisation-scoped entities."""
     logger.info("Backing up organisation-level data …")
 
-    _export(paths, inventory, org_url, dry_run=dry_run, label="users",
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="users",
             area="graph", resource="users",
             query_parameters={"subjectTypes": "aad,msa"}, list_key="value")
-    _export(paths, inventory, org_url, dry_run=dry_run, label="groups",
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="groups",
             area="graph", resource="groups", list_key="value")
-    _export(paths, inventory, org_url, dry_run=dry_run, label="memberships",
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="memberships",
             area="graph", resource="memberships", list_key="value",
             api_version="7.1-preview.1")
-    _export_service_connections(paths, inventory, org_url, dry_run=dry_run)
-    _export_variable_groups(paths, inventory, org_url, dry_run=dry_run)
-    _export(paths, inventory, org_url, dry_run=dry_run, label="agent_pools",
+    _export_service_connections(paths, inventory, org_url, dry_run=dry_run, pat=pat)
+    _export_variable_groups(paths, inventory, org_url, dry_run=dry_run, pat=pat)
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="agent_pools",
             area="distributedtask", resource="pools", list_key="value")
-    _export(paths, inventory, org_url, dry_run=dry_run, label="queues",
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="queues",
             area="distributedtask", resource="queues", list_key="value")
-    _export_permissions_acl(paths, inventory, org_url, dry_run=dry_run)
+    _export_permissions_acl(paths, inventory, org_url, dry_run=dry_run, pat=pat)
 
 
 def _export(
@@ -47,6 +48,7 @@ def _export(
     org_url: str,
     *,
     dry_run: bool,
+    pat: str = "",
     label: str,
     area: str,
     resource: str,
@@ -75,7 +77,7 @@ def _export(
         logger.info("Exported %s (%d items)", label, count)
     except Exception as exc:
         logger.warning("Failed to export %s: %s", label, exc)
-        inventory.add_error("org", label, str(exc))
+        inventory.add_error("org", label, str(exc), pat=pat)
 
 
 def _export_service_connections(
@@ -84,6 +86,7 @@ def _export_service_connections(
     org_url: str,
     *,
     dry_run: bool,
+    pat: str = "",
 ) -> None:
     label = "service_connections"
     filename = f"{label}.json"
@@ -104,7 +107,7 @@ def _export_service_connections(
         logger.info("Exported %s (%d items)", label, count)
     except Exception as exc:
         logger.warning("Failed to export %s: %s", label, exc)
-        inventory.add_error("org", label, str(exc))
+        inventory.add_error("org", label, str(exc), pat=pat)
 
 
 def _export_variable_groups(
@@ -113,6 +116,7 @@ def _export_variable_groups(
     org_url: str,
     *,
     dry_run: bool,
+    pat: str = "",
 ) -> None:
     label = "variable_groups"
     filename = f"{label}.json"
@@ -133,7 +137,7 @@ def _export_variable_groups(
         logger.info("Exported %s (%d items)", label, count)
     except Exception as exc:
         logger.warning("Failed to export %s: %s", label, exc)
-        inventory.add_error("org", label, str(exc))
+        inventory.add_error("org", label, str(exc), pat=pat)
 
 
 def _export_permissions_acl(
@@ -142,6 +146,7 @@ def _export_permissions_acl(
     org_url: str,
     *,
     dry_run: bool,
+    pat: str = "",
 ) -> None:
     label = "permissions_acl"
     filename = f"{label}.json"
@@ -162,4 +167,4 @@ def _export_permissions_acl(
         logger.info("Exported %s (%d items)", label, count)
     except Exception as exc:
         logger.warning("Failed to export %s: %s", label, exc)
-        inventory.add_error("org", label, str(exc))
+        inventory.add_error("org", label, str(exc), pat=pat)

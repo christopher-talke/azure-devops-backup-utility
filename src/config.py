@@ -50,7 +50,8 @@ def load_yaml(path: Path) -> dict[str, Any]:
 
 # All component names that can be included/excluded.
 ALL_COMPONENTS = frozenset(
-    {"org", "projects", "git", "boards", "pipelines", "permissions"}
+    {"org", "projects", "git", "boards", "pipelines", "permissions",
+     "pull_requests", "artifacts", "dashboards"}
 )
 
 
