@@ -14,7 +14,7 @@ from inventory import Inventory
 from paths import BackupPaths
 from scopes import (
     artifacts, boards, dashboards, git, org, permissions, pipelines,
-    projects, pull_requests,
+    projects, pull_requests, testplans, wikis,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,8 @@ def run_backup(cfg: BackupConfig) -> int:
     # Enumerate projects
     project_list: list[dict[str, Any]] = []
     if any(c in active for c in ("projects", "git", "boards", "pipelines", "permissions",
-                                    "pull_requests", "artifacts", "dashboards")):
+                                    "pull_requests", "artifacts", "dashboards", "wikis",
+                                    "testplans")):
         try:
             if cfg.dry_run:
                 logger.info("[DRY-RUN] Would list projects")
@@ -169,7 +170,46 @@ def run_backup(cfg: BackupConfig) -> int:
                 inv=inv, category="dashboards", name=pname, pat=cfg.pat,
             )
 
+        if "wikis" in active:
+            _safe_call(
+                wikis.backup_wikis,
+                bp, inv, cfg.org_url, pname,
+                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                fail_fast=cfg.fail_fast,
+                inv=inv, category="wikis", name=pname, pat=cfg.pat,
+            )
+
+        if "testplans" in active:
+            _safe_call(
+                testplans.backup_testplans,
+                bp, inv, cfg.org_url, pname,
+                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                fail_fast=cfg.fail_fast,
+                inv=inv, category="testplans", name=pname, pat=cfg.pat,
+            )
+
     _write_indexes(bp, inv)
+
+    # Verification (optional)
+    verify_exit = 0
+    if cfg.verify and not cfg.dry_run:
+        try:
+            from verify import verify_backup
+            report = verify_backup(bp.base, cfg.org_url, pat=cfg.pat, samples=cfg.verify_samples)
+            s = report.summary
+            logger.info(
+                "Verification: %d passed, %d failed, %d skipped, %d errors",
+                s["passed"], s["failed"], s["skipped"], s["errors"],
+            )
+            if s["failed"] > 0:
+                logger.warning(
+                    "Verification failures detected – see %s",
+                    bp.base / "_indexes" / "verification_report.json",
+                )
+                verify_exit = 2
+        except Exception as exc:
+            logger.error("Verification step failed: %s", exc)
+            verify_exit = 2
 
     # Compression
     if cfg.compress and not cfg.dry_run:
@@ -182,7 +222,8 @@ def run_backup(cfg: BackupConfig) -> int:
         logger.warning("Errors occurred – see %s", bp.errors_file())
     logger.info("Output: %s", bp.base)
 
-    return 1 if inv.errors and cfg.fail_fast else 0
+    backup_exit = 1 if inv.errors else 0
+    return max(backup_exit, verify_exit)
 
 
 def _safe_call(func: Any, *args: Any, fail_fast: bool = False, inv: Inventory | None = None,

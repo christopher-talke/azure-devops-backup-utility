@@ -272,6 +272,32 @@ def invoke(
     return result
 
 
+def download_binary(
+    url: str,
+    dest: Path,
+    *,
+    timeout: int = 120,
+    max_retries: int = 3,
+) -> None:
+    """Download binary content from a URL to *dest* using ``az rest``.
+
+    Uses the currently authenticated az CLI session so no explicit credential
+    handling is needed. The destination directory is created automatically.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    cmd = ["az", "rest", "--method", "GET", "--url", url, "--output-file", str(dest)]
+
+    retry(
+        _run_az,
+        cmd,
+        timeout=timeout,
+        parse_json=False,
+        max_retries=max_retries,
+        retryable=(AzCliThrottled, subprocess.TimeoutExpired),
+    )
+    logger.debug("Downloaded binary → %s", dest)
+
+
 def git_clone(
     repo_url: str,
     dest: Path,
@@ -286,7 +312,6 @@ def git_clone(
     or ``ps`` output).
     """
     dest.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["git", "clone", "--mirror", repo_url, str(dest)]
 
     # Pass PAT via git config env vars — keeps creds out of argv and ps output
     env = os.environ.copy()
@@ -300,8 +325,14 @@ def git_clone(
         env["GIT_CONFIG_KEY_0"] = f"http.{scope_url}.extraheader"
         env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {token_b64}"
 
-    # Log without secret
-    logger.info("Cloning %s -> %s", repo_url, dest)
+    # If dest already exists as a bare repo, fetch (incremental) instead of clone
+    if (dest / "HEAD").exists():
+        logger.info("Updating existing mirror %s", dest)
+        cmd = ["git", "-C", str(dest), "remote", "update", "--prune"]
+    else:
+        logger.info("Cloning %s -> %s", repo_url, dest)
+        cmd = ["git", "clone", "--mirror", repo_url, str(dest)]
+
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -312,7 +343,7 @@ def git_clone(
     if result.returncode != 0:
         safe_stderr = _scrub_pat(result.stderr, pat)
         raise AzCliError(
-            f"git clone failed (rc={result.returncode}): {safe_stderr.strip()}",
+            f"git operation failed (rc={result.returncode}): {safe_stderr.strip()}",
             result.returncode,
             safe_stderr.strip(),
         )

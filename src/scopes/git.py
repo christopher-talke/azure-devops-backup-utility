@@ -88,9 +88,10 @@ def _export_repo_metadata(
     *,
     dry_run: bool,
 ) -> None:
-    """Export branches, tags, and policies for a repository."""
+    """Export branches, tags, policies, and permissions for a repository."""
     repo_name = repo.get("name", "unknown")
     repo_id = repo.get("id", "")
+    project_id = repo.get("project", {}).get("id", "")
     if dry_run:
         return
 
@@ -137,3 +138,23 @@ def _export_repo_metadata(
         writers.write_json(dest.parent / f"{repo_name}_policies.json", redact.redact(items))
     except Exception as exc:
         logger.debug("Could not export policies for '%s': %s", repo_name, exc)
+
+    # Permissions (repo-scoped ACL via token filter)
+    if project_id and repo_id:
+        try:
+            token = f"repoV2/{project_id}/{repo_id}"
+            data = azcli.invoke(
+                "security", "accesscontrollists",
+                org_url=org_url,
+                project=project_name,
+                query_parameters={"token": token},
+            )
+            items = data.get("value", data) if isinstance(data, dict) else data
+            dest = paths.repo_dir(project_name, repo_name)
+            writers.write_json(dest.parent / f"{repo_name}_permissions.json", redact.redact(items))
+            count = len(items) if isinstance(items, list) else 1
+            inventory.add("git", f"{project_name}/{repo_name}/permissions",
+                           str(dest.parent / f"{repo_name}_permissions.json"), count)
+            logger.debug("Exported permissions for repo '%s'", repo_name)
+        except Exception as exc:
+            logger.debug("Could not export permissions for '%s': %s", repo_name, exc)

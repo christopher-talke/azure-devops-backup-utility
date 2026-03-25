@@ -51,7 +51,7 @@ def load_yaml(path: Path) -> dict[str, Any]:
 # All component names that can be included/excluded.
 ALL_COMPONENTS = frozenset(
     {"org", "projects", "git", "boards", "pipelines", "permissions",
-     "pull_requests", "artifacts", "dashboards"}
+     "pull_requests", "artifacts", "dashboards", "wikis", "testplans"}
 )
 
 
@@ -72,6 +72,8 @@ class BackupConfig:
     dry_run: bool = False
     verbose: bool = False
     timeout: int = 120
+    verify: bool = False
+    verify_samples: int = 3
 
     # Allowed compress values
     _VALID_COMPRESS = ("", "repos", "project", "all")
@@ -98,6 +100,15 @@ class BackupConfig:
         resolved = Path(self.output_dir).resolve()
         if ".." in Path(self.output_dir).parts:
             errors.append(f"output_dir must not contain '..': {self.output_dir}")
+        # Validate --since date format
+        if self.since:
+            import re as _re
+            _ISO_PATTERN = _re.compile(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}Z?)?$")
+            if not _ISO_PATTERN.match(self.since):
+                errors.append(
+                    f"--since must be ISO 8601 date (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SSZ), "
+                    f"got: {self.since!r}"
+                )
         return errors
 
 
@@ -180,6 +191,10 @@ def build_config(args: Any | None = None, yaml_path: Path | None = None) -> Back
             cfg.dry_run = True
         if getattr(args, "verbose", False):
             cfg.verbose = True
+        if getattr(args, "verify", False):
+            cfg.verify = True
+        if getattr(args, "verify_samples", None) is not None:
+            cfg.verify_samples = args.verify_samples
 
     cfg.org_url = cfg.org_url.rstrip("/")
     return cfg

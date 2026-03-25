@@ -29,6 +29,10 @@ def _build_parser():
     parser.add_argument("--fail-fast", action="store_true", help="Abort on first error")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be done without writing data")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging")
+    parser.add_argument("--verify", action="store_true",
+                        help="After backup, verify a random sample of items against the live instance")
+    parser.add_argument("--verify-samples", type=int, default=3, metavar="N",
+                        help="Items to sample per category during verification (default: 3)")
     return parser
 
 

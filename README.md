@@ -12,7 +12,7 @@ Designed for CI/CD pipelines with zero external Python dependencies.
 
 ## Features
 
-- **Broad data coverage** - organisations, projects, repos, pull requests, boards, pipelines, artifacts, dashboards, and permissions
+- **Broad data coverage** - organisations, projects, repos, pull requests, boards, pipelines, artifacts, dashboards, permissions, wikis, and test plans
 - **Azure CLI only** - all API access via `az devops` / `az devops invoke`; no direct HTTP clients
 - **Git CLI** - repository content cloned via `git clone --mirror`
 - **Standard library only** - no pip dependencies beyond Python >= 3.9
@@ -41,7 +41,7 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 | Tag refs | Supported | Exported as structured JSON via `git/refs` with `filter=tags/` |
 | Branch policies | Supported | Per-repository filtering via `policy/configurations?repositoryId=` |
 | Repository metadata | Supported | Default branch, size, and other properties from `az repos list` |
-| Repository permissions | Partial | Project-level ACLs captured; per-repo security namespace tokens not yet targeted |
+| Repository permissions | Supported | Per-repo ACLs via `security/accesscontrollists` with `repoV2/{projectId}/{repoId}` token |
 
 ### Pull Requests
 
@@ -50,8 +50,8 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 | PR metadata (all statuses) | Supported | Title, description, author, timestamps, target branch, reviewers, votes |
 | PR comment threads | Supported | All threads including resolved/active state and comment authors |
 | PR work item links | Supported | Linked work items per PR |
-| PR labels | Not yet | Labels endpoint not yet wired |
-| PR iteration history | Not yet | Iteration/commit history endpoint not yet wired |
+| PR labels | Supported | Via `git/pullRequestLabels` |
+| PR iteration history | Supported | Via `git/pullRequestIterations` |
 
 ### Pipelines
 
@@ -67,7 +67,7 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 | Service connections | Supported | Names, types, endpoint URLs; credentials redacted via `authorization.parameters` path |
 | Agent pools and queues | Supported | Metadata only |
 | Pipeline run history | Supported | Build index with configurable `--max-items` and `--since` filtering |
-| Pipeline run logs | Not yet | Log content download is not yet implemented |
+| Pipeline run logs | Supported | Log files downloaded via `az rest` per build run |
 
 ### Boards and Work Items
 
@@ -75,8 +75,8 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 |---|---|---|
 | Work items (all fields) | Supported | Fetched via WIQL query then `az boards work-item show --expand all` in batches of 200 |
 | Work item relations | Supported | Included via `--expand all` |
-| Work item history | Partial | Revision data included via expand; full update history not yet wired |
-| Work item attachments | Not yet | Path helper exists but binary download is not yet implemented |
+| Work item history | Supported | Full revision history via `wit/revisions` per work item |
+| Work item attachments | Supported | Binary files downloaded via `az rest` per work item |
 | Saved queries | Supported | Via `wit/queries` with depth 2 |
 | Work item tags | Supported | Via `wit/tags` |
 | Board column/swimlane config | Supported | Board definitions, columns, and rows (swimlanes) per board |
@@ -91,8 +91,8 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 |---|---|---|
 | Feed configurations | Supported | Via `packaging/feeds` |
 | Package metadata | Supported | Per-feed package listing; binary content is not downloaded |
-| Feed permissions | Not yet | Feed-level permissions endpoint not yet wired |
-| Retention policies | Not yet | Feed retention settings not yet wired |
+| Feed permissions | Supported | Via `packaging/feedpermissions` per feed |
+| Retention policies | Supported | Via `packaging/retentionpolicies` per feed |
 
 ### Access and Identity
 
@@ -103,7 +103,7 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 | Group memberships | Supported | Via `graph/memberships` (API v7.1-preview.1) |
 | Security namespaces | Supported | Fetched once (org-wide) and cached to avoid redundant calls |
 | Project-level ACLs | Supported | Via `security/accesscontrollists` per project |
-| Service principal/PAT metadata | Not yet | `tokens/pats` and `graph/serviceprincipals` endpoints not yet wired |
+| Service principal/PAT metadata | Supported | Via `graph/serviceprincipals` and `tokens/pats`; token values redacted |
 
 ### Project and Organisation Settings
 
@@ -114,17 +114,19 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 | Dashboards and widgets | Supported | Dashboard list plus per-dashboard widget configurations |
 | Notification subscriptions | Supported | Via `notification/subscriptions` |
 
-### Not Yet Implemented / To Be Completed
+### Wikis
 
-| Feature | Notes |
-|---|---|
-| Wiki content export | Not yet implemented |
-| Test plans and suites | Not yet implemented |
-| Work item attachment download | Path helper exists; binary download not yet wired |
-| Pipeline run log download | Log content download not yet implemented |
-| PR labels and iteration history | Endpoints not yet wired |
-| Feed permissions and retention | Endpoints not yet wired |
-| Service principal/PAT metadata | Endpoints not yet wired |
+| Feature | Status | Notes |
+|---|---|---|
+| Wiki list | Supported | Via `wiki/wikis` |
+| Wiki page content | Supported | Full page tree with content via `wiki/pages?recursionLevel=full` |
+
+### Test Plans
+
+| Feature | Status | Notes |
+|---|---|---|
+| Test plans | Supported | Via `test/plans` |
+| Test suites | Supported | Per-plan suites via `test/suites` |
 
 ## Prerequisites
 
@@ -190,7 +192,7 @@ python src/cli.py \
 |---|---|---|
 | `--org-url` | `$AZURE_DEVOPS_ORG_URL` | Azure DevOps organisation URL |
 | `--projects` | `all` | Comma-separated project names or `all` |
-| `--include` | all components | Comma-separated: `org,projects,git,boards,pipelines,permissions,pull_requests,artifacts,dashboards` |
+| `--include` | all components | Comma-separated: `org,projects,git,boards,pipelines,permissions,pull_requests,artifacts,dashboards,wikis,testplans` |
 | `--exclude` | none | Components to skip |
 | `--since` | none | ISO timestamp for incremental filtering (applies to work items and pipeline runs) |
 | `--max-items` | `0` (unlimited) | Per-entity item limit |
@@ -248,6 +250,8 @@ ado-backup/
       queues.json
       permissions_acl.json
       security_namespaces.json
+      service_principals.json
+      pat_tokens.json
     projects/
       {project-name}/
         metadata/
@@ -261,6 +265,7 @@ ado-backup/
           {repo-name}_branches.json
           {repo-name}_tags.json
           {repo-name}_policies.json
+          {repo-name}_permissions.json
           {repo-name}/                  # mirror clone
         pull_requests/
           {repo-name}/
@@ -268,10 +273,15 @@ ado-backup/
             {pr-id}/
               threads.json
               work_items.json
+              labels.json
+              iterations.json
         boards/
           work_items/
             index.json
             {id}.json
+            {id}_revisions.json
+            {id}/
+              attachments/                # binary files
           queries.json
           tags.json
           board_config.json
@@ -286,13 +296,24 @@ ado-backup/
           secure_files.json
           task_groups.json
           release_definitions.json
+          logs/
+            {build-id}/
+              {log-id}.txt
         artifacts/
           feeds.json
           feed_{name}_packages.json
+          feed_{name}_permissions.json
+          feed_{name}_retention.json
         dashboards/
           dashboards.json
           dashboard_{name}_widgets.json
           notification_subscriptions.json
+        wikis/
+          wikis.json
+          wiki_{name}_pages.json
+        test_plans/
+          plans.json
+          plan_{name}_suites.json
     _indexes/
       inventory.json          # all exported entities with SHA-256 checksums
       manifest.json           # backup metadata (timing, counts, limits)

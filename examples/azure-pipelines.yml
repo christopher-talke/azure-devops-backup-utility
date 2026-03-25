@@ -25,7 +25,9 @@ steps:
       export PYTHONPATH=src
       python src/cli.py \
         --output-dir $(Build.ArtifactStagingDirectory)/ado-backup \
-        --max-items 500
+        --max-items 500 \
+        --verify \
+        --verify-samples 3
     displayName: "Run ADO Backup"
     env:
       AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
@@ -36,3 +38,10 @@ steps:
       PathtoPublish: "$(Build.ArtifactStagingDirectory)/ado-backup"
       ArtifactName: "ado-backup"
     displayName: "Publish Backup Artifact"
+
+  - task: PublishBuildArtifacts@1
+    condition: always()
+    inputs:
+      PathtoPublish: "$(Build.ArtifactStagingDirectory)/ado-backup"
+      ArtifactName: "verification-report"
+    displayName: "Publish Verification Report"

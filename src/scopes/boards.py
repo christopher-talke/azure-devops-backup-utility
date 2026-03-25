@@ -9,7 +9,7 @@ import azcli
 import redact
 import writers
 from inventory import Inventory
-from paths import BackupPaths
+from paths import BackupPaths, safe_name
 
 logger = logging.getLogger(__name__)
 
@@ -141,31 +141,87 @@ def _export_work_items(
     inventory.add("boards", f"{project_name}/work_items", str(wi_dir / "index.json"), len(ids))
     logger.info("Found %d work items for '%s'", len(ids), project_name)
 
-    # Export individual work items in batches
+    # Export individual work items in batches (per-item fetch for reliability)
     batch_size = 200
     for batch_start in range(0, len(ids), batch_size):
         batch_ids = ids[batch_start: batch_start + batch_size]
+        for wi_id in batch_ids:
+            try:
+                item = azcli.invoke(
+                    "wit", "workItems",
+                    route_parameters={"id": str(wi_id)},
+                    query_parameters={"$expand": "all"},
+                    org_url=org_url,
+                    project=project_name,
+                    paginate=False,
+                )
+                if not isinstance(item, dict):
+                    logger.warning("Unexpected response for work item %d, skipping", wi_id)
+                    continue
+                writers.write_json(wi_dir / f"{wi_id}.json", redact.redact(item))
+                _export_work_item_revisions(wi_dir, inventory, org_url, project_name,
+                                            wi_id, pat=pat)
+                _export_work_item_attachments(paths, inventory, project_name, wi_id,
+                                              item, pat=pat)
+            except Exception as exc:
+                logger.warning("Failed to export work item %d: %s", wi_id, exc)
+                inventory.add_error("boards", f"{project_name}/work_items/{wi_id}", str(exc), pat=pat)
+
+
+def _export_work_item_revisions(
+    wi_dir: Any,
+    inventory: Inventory,
+    org_url: str,
+    project_name: str,
+    wi_id: int,
+    *,
+    pat: str = "",
+) -> None:
+    """Export full revision history for a single work item."""
+    try:
+        data = azcli.invoke(
+            "wit", "revisions",
+            org_url=org_url,
+            project=project_name,
+            route_parameters={"id": str(wi_id)},
+        )
+        items = data.get("value", data) if isinstance(data, dict) else data
+        if not isinstance(items, list):
+            items = [items] if items else []
+        writers.write_json(wi_dir / f"{wi_id}_revisions.json", redact.redact(items))
+    except Exception as exc:
+        logger.debug("Could not export revisions for work item %d in '%s': %s",
+                      wi_id, project_name, exc)
+
+
+def _export_work_item_attachments(
+    paths: BackupPaths,
+    inventory: Inventory,
+    project_name: str,
+    wi_id: int,
+    item: dict,
+    *,
+    pat: str = "",
+) -> None:
+    """Download binary attachments for a single work item."""
+    relations = item.get("relations") or []
+    attach_dir = paths.work_item_attachments_dir(project_name, wi_id)
+    for rel in relations:
+        if rel.get("rel") != "AttachedFile":
+            continue
+        url = rel.get("url", "")
+        filename = safe_name(rel.get("attributes", {}).get("name", "attachment"))
+        if not url or not filename:
+            continue
+        dest = attach_dir / filename
         try:
-            ids_str = ",".join(str(i) for i in batch_ids)
-            items = azcli.az(
-                "boards", "work-item", "show",
-                "--id", ids_str,
-                "--expand", "all",
-                org_url=org_url,
-                project=project_name,
-            )
-            if isinstance(items, dict):
-                items = [items]
-            if isinstance(items, list):
-                for item in items:
-                    wi_id = item.get("id", "unknown")
-                    if not isinstance(wi_id, int):
-                        logger.warning("Skipping work item with non-integer id: %r", wi_id)
-                        continue
-                    writers.write_json(wi_dir / f"{wi_id}.json", redact.redact(item))
+            azcli.download_binary(url, dest)
+            inventory.add("boards", f"{project_name}/work_items/{wi_id}/attachments/{filename}",
+                           str(dest))
+            logger.debug("Downloaded attachment '%s' for work item %d", filename, wi_id)
         except Exception as exc:
-            logger.warning("Failed to export work items batch starting at %d: %s", batch_start, exc)
-            inventory.add_error("boards", f"{project_name}/work_items/batch_{batch_start}", str(exc), pat=pat)
+            logger.debug("Could not download attachment '%s' for work item %d: %s",
+                          filename, wi_id, exc)
 
 
 def _export_board_config(

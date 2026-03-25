@@ -1,4 +1,4 @@
-"""Organisation-level backup: users, groups, service connections, etc."""
+"""Organisation-level backup: users, groups, service connections, service principals, PATs."""
 
 from __future__ import annotations
 
@@ -40,6 +40,9 @@ def backup_org(
     _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="queues",
             area="distributedtask", resource="queues", list_key="value")
     _export_permissions_acl(paths, inventory, org_url, dry_run=dry_run, pat=pat)
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="service_principals",
+            area="graph", resource="serviceprincipals", list_key="value")
+    _export_pat_tokens(paths, inventory, org_url, dry_run=dry_run, pat=pat)
 
 
 def _export(
@@ -165,6 +168,42 @@ def _export_permissions_acl(
         count = len(items) if isinstance(items, list) else 1
         inventory.add("org", label, str(out_path), count)
         logger.info("Exported %s (%d items)", label, count)
+    except Exception as exc:
+        logger.warning("Failed to export %s: %s", label, exc)
+        inventory.add_error("org", label, str(exc), pat=pat)
+
+
+def _export_pat_tokens(
+    paths: BackupPaths,
+    inventory: Inventory,
+    org_url: str,
+    *,
+    dry_run: bool,
+    pat: str = "",
+) -> None:
+    """Export PAT token metadata for the authenticated user.
+
+    Token values are redacted; only metadata (display name, scope, expiry) is kept.
+    This endpoint may not be available in all org configurations.
+    """
+    label = "pat_tokens"
+    filename = f"{label}.json"
+    if dry_run:
+        logger.info("[DRY-RUN] Would export %s", filename)
+        return
+    try:
+        data = azcli.invoke(
+            "tokens", "pats",
+            org_url=org_url,
+        )
+        items = data.get("patTokens", data.get("value", data)) if isinstance(data, dict) else data
+        if not isinstance(items, list):
+            items = [items] if items else []
+        items = redact.redact(items)
+        out_path = paths.org_file(filename)
+        writers.write_json(out_path, items)
+        inventory.add("org", label, str(out_path), len(items))
+        logger.info("Exported %s (%d items)", label, len(items))
     except Exception as exc:
         logger.warning("Failed to export %s: %s", label, exc)
         inventory.add_error("org", label, str(exc), pat=pat)

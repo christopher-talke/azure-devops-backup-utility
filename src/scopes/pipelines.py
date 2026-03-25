@@ -1,4 +1,4 @@
-"""Pipelines backup: definitions, runs, environments, secure files, task groups, releases."""
+"""Pipelines backup: definitions, runs, environments, secure files, task groups, releases, logs."""
 
 from __future__ import annotations
 
@@ -30,7 +30,8 @@ def backup_pipelines(
     pipe_dir = paths.pipelines_dir(project_name)
 
     _export_pipelines(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
-    _export_runs_index(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, max_items=max_items, pat=pat, since=since)
+    _export_runs_index(paths, pipe_dir, inventory, org_url, project_name,
+                       dry_run=dry_run, max_items=max_items, pat=pat, since=since)
     _export_environments(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
     _export_secure_files(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
     _export_task_groups(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
@@ -62,6 +63,7 @@ def _export_pipelines(
 
 
 def _export_runs_index(
+    paths: BackupPaths,
     pipe_dir: Any,
     inventory: Inventory,
     org_url: str,
@@ -88,10 +90,19 @@ def _export_runs_index(
             query_parameters=qp if qp else None,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
+        if not isinstance(items, list):
+            items = [items] if items else []
         out_path = pipe_dir / "runs_index.json"
         writers.write_json(out_path, redact.redact(items))
-        count = len(items) if isinstance(items, list) else 1
-        inventory.add("pipelines", f"{project_name}/runs_index", str(out_path), count)
+        inventory.add("pipelines", f"{project_name}/runs_index", str(out_path), len(items))
+
+        # Download logs for each build
+        for build in items:
+            build_id = build.get("id")
+            if not isinstance(build_id, int):
+                continue
+            _export_run_logs(paths, inventory, org_url, project_name, build_id, pat=pat)
+
     except Exception as exc:
         logger.warning("Failed to export pipeline runs index for '%s': %s", project_name, exc)
         inventory.add_error("pipelines", f"{project_name}/runs_index", str(exc), pat=pat)
@@ -220,3 +231,48 @@ def _export_release_definitions(
     except Exception as exc:
         logger.warning("Failed to export release definitions for '%s': %s", project_name, exc)
         inventory.add_error("pipelines", f"{project_name}/release_definitions", str(exc), pat=pat)
+
+
+def _export_run_logs(
+    paths: BackupPaths,
+    inventory: Inventory,
+    org_url: str,
+    project_name: str,
+    build_id: int,
+    *,
+    pat: str = "",
+) -> None:
+    """Download log files for a single pipeline build run."""
+    try:
+        data = azcli.invoke(
+            "build", "logs",
+            org_url=org_url,
+            project=project_name,
+            route_parameters={"buildId": str(build_id)},
+            paginate=False,
+        )
+        log_entries = data.get("value", data) if isinstance(data, dict) else data
+        if not isinstance(log_entries, list):
+            log_entries = [log_entries] if log_entries else []
+
+        logs_dir = paths.pipelines_logs_dir(project_name, build_id)
+        for entry in log_entries:
+            log_id = entry.get("id")
+            log_url = entry.get("url", "")
+            if not log_id or not log_url:
+                continue
+            dest = logs_dir / f"{log_id}.txt"
+            try:
+                azcli.download_binary(log_url, dest)
+                inventory.add("pipelines",
+                               f"{project_name}/runs/{build_id}/logs/{log_id}",
+                               str(dest))
+            except Exception as exc:
+                logger.debug("Could not download log %d for build %d: %s",
+                              log_id, build_id, exc)
+
+        if log_entries:
+            logger.info("Downloaded %d log(s) for build %d", len(log_entries), build_id)
+    except Exception as exc:
+        logger.debug("Could not fetch logs for build %d in '%s': %s",
+                      build_id, project_name, exc)

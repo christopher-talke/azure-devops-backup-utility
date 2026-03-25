@@ -30,10 +30,20 @@ jobs:
           export PYTHONPATH=src
           python src/cli.py \
             --output-dir "${{ github.workspace }}/ado-backup" \
-            --max-items 500
+            --max-items 500 \
+            --verify \
+            --verify-samples 3
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ado-backup
           path: ado-backup/
           retention-days: 30
+
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verification-report
+          path: "${{ github.workspace }}/ado-backup/**/_indexes/verification_report.json"
+          retention-days: 90

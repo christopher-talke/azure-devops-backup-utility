@@ -1,4 +1,4 @@
-"""Pull request backup: PR metadata, threads, reviewers, work items, labels."""
+"""Pull request backup: PR metadata, threads, reviewers, work items, labels, iterations."""
 
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def _export_repo_prs(
                        str(repo_pr_dir / "pull_requests.json"), len(prs))
         logger.info("Exported %d PRs for '%s/%s'", len(prs), project_name, repo_name)
 
-        # Export threads & work item links for each PR
+        # Export threads, work item links, labels, and iterations for each PR
         for pr in prs:
             pr_id = pr.get("pullRequestId")
             if not pr_id:
@@ -101,6 +101,10 @@ def _export_repo_prs(
             _export_pr_threads(repo_pr_dir, inventory, org_url, project_name,
                                repo_name, repo_id, pr_id, pat=pat)
             _export_pr_work_items(repo_pr_dir, inventory, org_url, project_name,
+                                  repo_name, repo_id, pr_id, pat=pat)
+            _export_pr_labels(repo_pr_dir, inventory, org_url, project_name,
+                              repo_name, repo_id, pr_id, pat=pat)
+            _export_pr_iterations(repo_pr_dir, inventory, org_url, project_name,
                                   repo_name, repo_id, pr_id, pat=pat)
 
     except Exception as exc:
@@ -162,4 +166,60 @@ def _export_pr_work_items(
         writers.write_json(out_path, redact.redact(items))
     except Exception as exc:
         logger.debug("Could not export work items for PR %d in '%s/%s': %s",
+                      pr_id, project_name, repo_name, exc)
+
+
+def _export_pr_labels(
+    repo_pr_dir: Any,
+    inventory: Inventory,
+    org_url: str,
+    project_name: str,
+    repo_name: str,
+    repo_id: str,
+    pr_id: int,
+    *,
+    pat: str = "",
+) -> None:
+    """Export labels for a single PR."""
+    try:
+        data = azcli.invoke(
+            "git", "pullRequestLabels",
+            org_url=org_url,
+            project=project_name,
+            route_parameters={"repositoryId": repo_id, "pullRequestId": str(pr_id)},
+            paginate=False,
+        )
+        items = data.get("value", data) if isinstance(data, dict) else data
+        out_path = repo_pr_dir / str(pr_id) / "labels.json"
+        writers.write_json(out_path, redact.redact(items))
+    except Exception as exc:
+        logger.debug("Could not export labels for PR %d in '%s/%s': %s",
+                      pr_id, project_name, repo_name, exc)
+
+
+def _export_pr_iterations(
+    repo_pr_dir: Any,
+    inventory: Inventory,
+    org_url: str,
+    project_name: str,
+    repo_name: str,
+    repo_id: str,
+    pr_id: int,
+    *,
+    pat: str = "",
+) -> None:
+    """Export iteration (commit) history for a single PR."""
+    try:
+        data = azcli.invoke(
+            "git", "pullRequestIterations",
+            org_url=org_url,
+            project=project_name,
+            route_parameters={"repositoryId": repo_id, "pullRequestId": str(pr_id)},
+            paginate=False,
+        )
+        items = data.get("value", data) if isinstance(data, dict) else data
+        out_path = repo_pr_dir / str(pr_id) / "iterations.json"
+        writers.write_json(out_path, redact.redact(items))
+    except Exception as exc:
+        logger.debug("Could not export iterations for PR %d in '%s/%s': %s",
                       pr_id, project_name, repo_name, exc)

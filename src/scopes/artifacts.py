@@ -1,4 +1,4 @@
-"""Artifacts / Azure Feeds backup: feed configs, package metadata."""
+"""Artifacts / Azure Feeds backup: feed configs, package metadata, permissions, retention."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def backup_artifacts(
                        str(art_dir / "feeds.json"), len(feeds))
         logger.info("Exported %d feed(s) for '%s'", len(feeds), project_name)
 
-        # Package metadata per feed
+        # Package metadata, permissions, and retention per feed
         for feed in feeds:
             feed_id = feed.get("id", "")
             feed_name = feed.get("name", "unknown")
@@ -57,6 +57,10 @@ def backup_artifacts(
                 continue
             _export_feed_packages(art_dir, inventory, org_url, project_name,
                                   feed_id, feed_name, pat=pat, max_items=max_items)
+            _export_feed_permissions(art_dir, inventory, org_url, project_name,
+                                     feed_id, feed_name, pat=pat)
+            _export_feed_retention(art_dir, inventory, org_url, project_name,
+                                   feed_id, feed_name, pat=pat)
 
     except Exception as exc:
         logger.warning("Failed to export feeds for '%s': %s", project_name, exc)
@@ -97,4 +101,65 @@ def _export_feed_packages(
     except Exception as exc:
         logger.warning("Failed to export packages for feed '%s': %s", feed_name, exc)
         inventory.add_error("artifacts", f"{project_name}/feeds/{feed_name}/packages",
+                            str(exc), pat=pat)
+
+
+def _export_feed_permissions(
+    art_dir: Any,
+    inventory: Inventory,
+    org_url: str,
+    project_name: str,
+    feed_id: str,
+    feed_name: str,
+    *,
+    pat: str = "",
+) -> None:
+    """Export permissions for a single feed."""
+    try:
+        data = azcli.invoke(
+            "packaging", "feedpermissions",
+            org_url=org_url,
+            project=project_name,
+            route_parameters={"feedId": feed_id},
+        )
+        items = data.get("value", data) if isinstance(data, dict) else data
+        if not isinstance(items, list):
+            items = [items] if items else []
+        out_path = art_dir / f"feed_{feed_name}_permissions.json"
+        writers.write_json(out_path, redact.redact(items))
+        inventory.add("artifacts", f"{project_name}/feeds/{feed_name}/permissions",
+                       str(out_path), len(items))
+        logger.info("Exported %d permission(s) for feed '%s'", len(items), feed_name)
+    except Exception as exc:
+        logger.warning("Failed to export permissions for feed '%s': %s", feed_name, exc)
+        inventory.add_error("artifacts", f"{project_name}/feeds/{feed_name}/permissions",
+                            str(exc), pat=pat)
+
+
+def _export_feed_retention(
+    art_dir: Any,
+    inventory: Inventory,
+    org_url: str,
+    project_name: str,
+    feed_id: str,
+    feed_name: str,
+    *,
+    pat: str = "",
+) -> None:
+    """Export retention policy for a single feed."""
+    try:
+        data = azcli.invoke(
+            "packaging", "retentionpolicies",
+            org_url=org_url,
+            project=project_name,
+            route_parameters={"feedId": feed_id},
+            paginate=False,
+        )
+        out_path = art_dir / f"feed_{feed_name}_retention.json"
+        writers.write_json(out_path, redact.redact(data))
+        inventory.add("artifacts", f"{project_name}/feeds/{feed_name}/retention", str(out_path))
+        logger.info("Exported retention policy for feed '%s'", feed_name)
+    except Exception as exc:
+        logger.warning("Failed to export retention for feed '%s': %s", feed_name, exc)
+        inventory.add_error("artifacts", f"{project_name}/feeds/{feed_name}/retention",
                             str(exc), pat=pat)
