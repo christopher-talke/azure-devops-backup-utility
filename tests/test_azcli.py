@@ -71,6 +71,20 @@ class TestRunAz(unittest.TestCase):
         self.assertEqual(result, "plain text output")
 
 
+class TestInvokePagination(unittest.TestCase):
+    @patch("azcli.retry")
+    @patch("azcli.logger")
+    def test_logs_warning_when_max_pages_reached_with_token(self, mock_logger, mock_retry):
+        mock_retry.side_effect = [
+            {"value": [1], "continuationToken": "next-token"},
+            {"value": [2], "continuationToken": "still-more"},
+        ]
+        from azcli import invoke
+        result = invoke("build", "builds", max_pages=2)
+        self.assertEqual(result["value"], [1, 2])
+        mock_logger.warning.assert_called_once()
+
+
 class TestGitClonePATScrubbing(unittest.TestCase):
     @patch("azcli.subprocess.run")
     def test_pat_scrubbed_from_error_message(self, mock_run):

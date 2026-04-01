@@ -35,8 +35,9 @@ class Inventory:
         if file_path.is_file():
             try:
                 entry["sha256"] = writers.file_hash(file_path)
-            except OSError:
-                pass  # Skip hash if file cannot be read
+            except OSError as exc:
+                entry["hash_error"] = str(exc)
+                logger.warning("Could not hash '%s': %s", file_path, exc)
         self.entries.append(entry)
 
     def add_error(self, category: str, name: str, error: str, detail: str = "", *, pat: str = "") -> None:

@@ -202,6 +202,12 @@ def _write_indexes(bp: BackupPaths, inv: Inventory) -> None:
     """Write manifest, inventory, and errors files."""
     try:
         inv.write(bp.inventory_file(), bp.manifest_file(), bp.errors_file())
+        missing_hashes = [e for e in inv.entries if "sha256" not in e]
+        if missing_hashes:
+            logger.warning(
+                "Integrity warning: %d inventory entrie(s) missing sha256 checksum",
+                len(missing_hashes),
+            )
     except Exception as exc:
         logger.error("Failed to write indexes: %s", exc)
 

@@ -266,6 +266,14 @@ def invoke(
         token = page_result.get("continuationToken")
         logger.debug("Pagination: page %d fetched %d items", page, len(page_items) if isinstance(page_items, list) else 0)
 
+    if token:
+        logger.warning(
+            "Pagination truncated at %d page(s) for %s/%s; additional continuation token present",
+            max_pages,
+            area,
+            resource,
+        )
+
     # Return in the same envelope shape, minus the token
     result[list_key] = all_items
     result.pop("continuationToken", None)
