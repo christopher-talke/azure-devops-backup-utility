@@ -21,28 +21,29 @@ def backup_org(
     *,
     pat: str = "",
     dry_run: bool = False,
+    timeout: int = 120,
 ) -> None:
     """Export organisation-scoped entities."""
     logger.info("Backing up organisation-level data …")
 
-    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="users",
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout, label="users",
             area="graph", resource="users",
             query_parameters={"subjectTypes": "aad,msa"}, list_key="value")
-    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="groups",
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout, label="groups",
             area="graph", resource="groups", list_key="value")
-    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="memberships",
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout, label="memberships",
             area="graph", resource="memberships", list_key="value",
             api_version="7.1-preview.1")
-    _export_service_connections(paths, inventory, org_url, dry_run=dry_run, pat=pat)
-    _export_variable_groups(paths, inventory, org_url, dry_run=dry_run, pat=pat)
-    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="agent_pools",
+    _export_service_connections(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export_variable_groups(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout, label="agent_pools",
             area="distributedtask", resource="pools", list_key="value")
-    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="queues",
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout, label="queues",
             area="distributedtask", resource="queues", list_key="value")
-    _export_permissions_acl(paths, inventory, org_url, dry_run=dry_run, pat=pat)
-    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, label="service_principals",
+    _export_permissions_acl(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout, label="service_principals",
             area="graph", resource="serviceprincipals", list_key="value")
-    _export_pat_tokens(paths, inventory, org_url, dry_run=dry_run, pat=pat)
+    _export_pat_tokens(paths, inventory, org_url, dry_run=dry_run, pat=pat, timeout=timeout)
 
 
 def _export(
@@ -52,6 +53,7 @@ def _export(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
     label: str,
     area: str,
     resource: str,
@@ -70,6 +72,7 @@ def _export(
             org_url=org_url,
             query_parameters=query_parameters or {},
             api_version=api_version,
+            timeout=timeout,
         )
         items = data.get(list_key, data) if isinstance(data, dict) else data
         items = redact.redact(items)
@@ -90,6 +93,7 @@ def _export_service_connections(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     label = "service_connections"
     filename = f"{label}.json"
@@ -100,6 +104,7 @@ def _export_service_connections(
         data = azcli.invoke(
             "serviceendpoint", "endpoints",
             org_url=org_url,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         items = redact.redact(items)
@@ -120,6 +125,7 @@ def _export_variable_groups(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     label = "variable_groups"
     filename = f"{label}.json"
@@ -130,6 +136,7 @@ def _export_variable_groups(
         data = azcli.invoke(
             "distributedtask", "variablegroups",
             org_url=org_url,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         items = redact.redact(items)
@@ -150,6 +157,7 @@ def _export_permissions_acl(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     label = "permissions_acl"
     filename = f"{label}.json"
@@ -160,6 +168,7 @@ def _export_permissions_acl(
         data = azcli.invoke(
             "security", "accesscontrollists",
             org_url=org_url,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         items = redact.redact(items)
@@ -180,6 +189,7 @@ def _export_pat_tokens(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export PAT token metadata for the authenticated user.
 
@@ -195,6 +205,7 @@ def _export_pat_tokens(
         data = azcli.invoke(
             "tokens", "pats",
             org_url=org_url,
+            timeout=timeout,
         )
         items = data.get("patTokens", data.get("value", data)) if isinstance(data, dict) else data
         if not isinstance(items, list):

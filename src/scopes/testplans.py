@@ -23,8 +23,14 @@ def backup_testplans(
     pat: str = "",
     dry_run: bool = False,
     max_items: int = 0,
+    since: str = "",
+    timeout: int = 120,
 ) -> None:
-    """Back up test plans and their suites for a project."""
+    """Back up test plans and their suites for a project.
+
+    *since* is accepted for API consistency but not currently used — the
+    Azure DevOps test plans API does not support date-based filtering.
+    """
     logger.info("Backing up test plans for project '%s' …", project_name)
 
     if dry_run:
@@ -42,6 +48,7 @@ def backup_testplans(
             org_url=org_url,
             project=project_name,
             query_parameters=qp if qp else None,
+            timeout=timeout,
         )
         plans = data.get("value", data) if isinstance(data, dict) else data
         if not isinstance(plans, list):

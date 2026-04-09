@@ -24,6 +24,7 @@ def export_security_namespaces_once(
     org_url: str,
     *,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Fetch security namespaces once (org-wide) and write to the org directory."""
     global _namespaces_exported
@@ -33,6 +34,7 @@ def export_security_namespaces_once(
         data = azcli.invoke(
             "security", "namespaces",
             org_url=org_url,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = paths.org_file("security_namespaces.json")
@@ -53,6 +55,7 @@ def backup_permissions(
     *,
     pat: str = "",
     dry_run: bool = False,
+    timeout: int = 120,
 ) -> None:
     """Export project-level ACLs for a project."""
     logger.info("Backing up permissions for project '%s' …", project_name)
@@ -64,7 +67,7 @@ def backup_permissions(
     meta_dir = paths.metadata_dir(project_name)
 
     # Security namespaces (org-wide, fetched only once)
-    export_security_namespaces_once(paths, inventory, org_url, pat=pat)
+    export_security_namespaces_once(paths, inventory, org_url, pat=pat, timeout=timeout)
 
     # Project-level ACLs
     try:
@@ -72,6 +75,7 @@ def backup_permissions(
             "security", "accesscontrollists",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = meta_dir / "permissions_acl.json"

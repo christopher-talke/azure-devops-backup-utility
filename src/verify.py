@@ -128,6 +128,14 @@ def verify_backup(
             report.results.extend(
                 _verify_artifacts(proj_dir, org_url, project_name, pat, samples, backup_started_at)
             )
+        if not active_components or "dashboards" in active_components:
+            report.results.extend(
+                _verify_dashboards(proj_dir, org_url, project_name, pat, samples, backup_started_at)
+            )
+        if not active_components or "testplans" in active_components:
+            report.results.extend(
+                _verify_testplans(proj_dir, org_url, project_name, pat, samples, backup_started_at)
+            )
 
     _write_report(report, backup_base / "_indexes" / "verification_report.json")
 
@@ -627,6 +635,130 @@ def _verify_artifacts(
             category="artifacts", project=project, item=item_label,
             status=status, check="packages_count",
             backed_up_value=backed_count, live_value=live_count, note=note,
+        ))
+
+    return results
+
+
+def _verify_dashboards(
+    proj_dir: Path, org_url: str, project: str, pat: str, n: int, backup_started_at: str
+) -> list[VerificationResult]:
+    results: list[VerificationResult] = []
+    dash_dir = proj_dir / "dashboards"
+    if not dash_dir.exists():
+        return results
+
+    dash_file = dash_dir / "dashboards.json"
+    if not dash_file.exists():
+        return results
+
+    try:
+        dashboards = _load_json(dash_file)
+        if not isinstance(dashboards, list):
+            dashboards = dashboards.get("value", []) if isinstance(dashboards, dict) else []
+    except Exception as exc:
+        logger.debug("Could not load dashboards.json for %s: %s", project, exc)
+        return results
+
+    for dashboard in _sample(dashboards, n):
+        dash_id = dashboard.get("id", "")
+        dash_name = dashboard.get("name", dash_id)
+        item_label = f"dashboard/{dash_name}"
+
+        if not dash_id:
+            results.append(VerificationResult(
+                category="dashboards", project=project, item=item_label,
+                status=_SKIP, check="dashboard_exists",
+                note="Dashboard has no id field",
+            ))
+            continue
+
+        try:
+            live = azcli.invoke(
+                "dashboard", "dashboards",
+                org_url=org_url, project=project,
+                paginate=False,
+            )
+            live_dashboards = live.get("value", live) if isinstance(live, dict) else live
+            if not isinstance(live_dashboards, list):
+                live_dashboards = [live_dashboards] if live_dashboards else []
+            live_ids = {d.get("id") for d in live_dashboards}
+        except Exception as exc:
+            results.append(VerificationResult(
+                category="dashboards", project=project, item=item_label,
+                status=_ERROR, check="dashboard_exists",
+                note=f"API call failed: {exc}",
+            ))
+            continue
+
+        status = _PASS if dash_id in live_ids else _FAIL
+        note = "Dashboard exists in live instance" if status == _PASS else "Dashboard not found in live instance"
+        results.append(VerificationResult(
+            category="dashboards", project=project, item=item_label,
+            status=status, check="dashboard_exists",
+            backed_up_value=dash_id, live_value=list(live_ids), note=note,
+        ))
+
+    return results
+
+
+def _verify_testplans(
+    proj_dir: Path, org_url: str, project: str, pat: str, n: int, backup_started_at: str
+) -> list[VerificationResult]:
+    results: list[VerificationResult] = []
+    tp_dir = proj_dir / "test_plans"
+    if not tp_dir.exists():
+        return results
+
+    plans_file = tp_dir / "plans.json"
+    if not plans_file.exists():
+        return results
+
+    try:
+        plans = _load_json(plans_file)
+        if not isinstance(plans, list):
+            plans = plans.get("value", []) if isinstance(plans, dict) else []
+    except Exception as exc:
+        logger.debug("Could not load plans.json for %s: %s", project, exc)
+        return results
+
+    for plan in _sample(plans, n):
+        plan_id = plan.get("id", "")
+        plan_name = plan.get("name", str(plan_id))
+        item_label = f"testplan/{plan_name}"
+
+        if not plan_id:
+            results.append(VerificationResult(
+                category="testplans", project=project, item=item_label,
+                status=_SKIP, check="testplan_exists",
+                note="Test plan has no id field",
+            ))
+            continue
+
+        try:
+            live = azcli.invoke(
+                "test", "plans",
+                org_url=org_url, project=project,
+                paginate=False,
+            )
+            live_plans = live.get("value", live) if isinstance(live, dict) else live
+            if not isinstance(live_plans, list):
+                live_plans = [live_plans] if live_plans else []
+            live_ids = {p.get("id") for p in live_plans}
+        except Exception as exc:
+            results.append(VerificationResult(
+                category="testplans", project=project, item=item_label,
+                status=_ERROR, check="testplan_exists",
+                note=f"API call failed: {exc}",
+            ))
+            continue
+
+        status = _PASS if plan_id in live_ids else _FAIL
+        note = "Test plan exists in live instance" if status == _PASS else "Test plan not found in live instance"
+        results.append(VerificationResult(
+            category="testplans", project=project, item=item_label,
+            status=status, check="testplan_exists",
+            backed_up_value=plan_id, live_value=list(live_ids), note=note,
         ))
 
     return results

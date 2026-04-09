@@ -202,6 +202,8 @@ python src/cli.py \
 | `--fail-fast` | `false` | Abort on first error |
 | `--dry-run` | `false` | Preview without writing data |
 | `--verbose` | `false` | Enable debug logging |
+| `--verify` | `false` | After backup, verify a random sample of items against the live ADO instance |
+| `--verify-samples` | `3` | Number of items to sample per category during verification |
 
 ## Environment Variables
 
@@ -361,6 +363,23 @@ Objects containing `"isSecret": true` (or `issecret`, `is_secret`) have their `v
 - The `manifest.json` records timing, entity counts, error counts, and any limits applied
 - Archives are verified (member listing read back) before the uncompressed source is removed
 - Errors are tracked in `errors.jsonl` with timestamps and PAT scrubbing
+
+### Live Verification (`--verify`)
+
+When `--verify` is passed, the tool samples `--verify-samples` items (default 3) per category per project after backup completes and compares them against the live ADO instance:
+
+| Category | Check |
+|----------|-------|
+| git | HEAD SHA of default branch matches live |
+| boards | `System.Rev` matches live work item |
+| pipelines | `revision` field matches live build definition |
+| pull_requests | `status` field matches live PR |
+| wikis | Pages file is non-empty |
+| artifacts | Package count matches live feed |
+| dashboards | Dashboard ID exists in live instance |
+| testplans | Test plan ID exists in live instance |
+
+Items modified after the backup started are skipped. Results are written to `_indexes/verification_report.json`. Exit code is `2` on any verification failure.
 
 ## Pagination
 

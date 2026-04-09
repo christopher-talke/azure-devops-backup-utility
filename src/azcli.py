@@ -304,12 +304,13 @@ def git_clone(
     *,
     pat: str = "",
     timeout: int = 600,
+    max_retries: int = 3,
 ) -> None:
     """Clone a Git repository to *dest* using the Git CLI.
 
     The PAT is passed via ``GIT_CONFIG_*`` environment variables so that it
     never appears in the process argument list (visible in ``/proc/<pid>/cmdline``
-    or ``ps`` output).
+    or ``ps`` output).  Transient failures are retried with exponential backoff.
     """
     dest.parent.mkdir(parents=True, exist_ok=True)
 
@@ -325,28 +326,36 @@ def git_clone(
         env["GIT_CONFIG_KEY_0"] = f"http.{scope_url}.extraheader"
         env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {token_b64}"
 
-    # If dest already exists as a bare repo, fetch (incremental) instead of clone
-    if (dest / "HEAD").exists():
-        logger.info("Updating existing mirror %s", dest)
-        cmd = ["git", "-C", str(dest), "remote", "update", "--prune"]
-    else:
-        logger.info("Cloning %s -> %s", repo_url, dest)
-        cmd = ["git", "clone", "--mirror", repo_url, str(dest)]
+    def _do_git() -> None:
+        # Check inside retry closure so a failed clone that left a partial
+        # bare repo is detected correctly on the next attempt.
+        if (dest / "HEAD").exists():
+            logger.info("Updating existing mirror %s", dest)
+            cmd = ["git", "-C", str(dest), "remote", "update", "--prune"]
+        else:
+            logger.info("Cloning %s -> %s", repo_url, dest)
+            cmd = ["git", "clone", "--mirror", repo_url, str(dest)]
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        env=env,
-    )
-    if result.returncode != 0:
-        safe_stderr = _scrub_pat(result.stderr, pat)
-        raise AzCliError(
-            f"git operation failed (rc={result.returncode}): {safe_stderr.strip()}",
-            result.returncode,
-            safe_stderr.strip(),
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
         )
+        if result.returncode != 0:
+            safe_stderr = _scrub_pat(result.stderr, pat)
+            raise AzCliError(
+                f"git operation failed (rc={result.returncode}): {safe_stderr.strip()}",
+                result.returncode,
+                safe_stderr.strip(),
+            )
+
+    retry(
+        _do_git,
+        max_retries=max_retries,
+        retryable=(AzCliError, subprocess.TimeoutExpired),
+    )
 
 
 def _scrub_pat(text: str, pat: str) -> str:

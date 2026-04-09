@@ -24,6 +24,7 @@ def backup_pull_requests(
     dry_run: bool = False,
     max_items: int = 0,
     since: str = "",
+    timeout: int = 120,
 ) -> None:
     """Back up pull requests (all statuses) and their threads/reviewers."""
     logger.info("Backing up pull requests for project '%s' …", project_name)
@@ -36,7 +37,7 @@ def backup_pull_requests(
 
     # List all repos to iterate PRs per-repo
     try:
-        repos = azcli.az("repos", "list", org_url=org_url, project=project_name)
+        repos = azcli.az("repos", "list", org_url=org_url, project=project_name, timeout=timeout)
     except Exception as exc:
         logger.warning("Failed to list repos for PR backup in '%s': %s", project_name, exc)
         inventory.add_error("pull_requests", f"{project_name}/repos", str(exc), pat=pat)

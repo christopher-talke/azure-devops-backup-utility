@@ -24,16 +24,17 @@ def backup_boards(
     dry_run: bool = False,
     max_items: int = 0,
     since: str = "",
+    timeout: int = 120,
 ) -> None:
     """Back up work items, queries, and tags for a project."""
     logger.info("Backing up boards for project '%s' …", project_name)
     boards_dir = paths.boards_dir(project_name)
 
-    _export_queries(boards_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
-    _export_tags(boards_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
-    _export_work_items(paths, inventory, org_url, project_name, dry_run=dry_run, max_items=max_items, pat=pat, since=since)
-    _export_board_config(boards_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
-    _export_team_settings(boards_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
+    _export_queries(boards_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export_tags(boards_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export_work_items(paths, inventory, org_url, project_name, dry_run=dry_run, max_items=max_items, pat=pat, since=since, timeout=timeout)
+    _export_board_config(boards_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export_team_settings(boards_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
 
 
 def _export_queries(
@@ -44,6 +45,7 @@ def _export_queries(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     if dry_run:
         logger.info("[DRY-RUN] Would export queries for %s", project_name)
@@ -54,6 +56,7 @@ def _export_queries(
             org_url=org_url,
             project=project_name,
             query_parameters={"$depth": "2"},
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = boards_dir / "queries.json"
@@ -73,6 +76,7 @@ def _export_tags(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     if dry_run:
         logger.info("[DRY-RUN] Would export tags for %s", project_name)
@@ -82,6 +86,7 @@ def _export_tags(
             "wit", "tags",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = boards_dir / "tags.json"
@@ -103,6 +108,7 @@ def _export_work_items(
     max_items: int = 0,
     pat: str = "",
     since: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export work items using WIQL query via az devops invoke."""
     if dry_run:
@@ -122,6 +128,7 @@ def _export_work_items(
             "--wiql", wiql,
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
     except Exception as exc:
         logger.warning("Failed to query work items for '%s': %s", project_name, exc)
@@ -154,6 +161,7 @@ def _export_work_items(
                     org_url=org_url,
                     project=project_name,
                     paginate=False,
+                    timeout=timeout,
                 )
                 if not isinstance(item, dict):
                     logger.warning("Unexpected response for work item %d, skipping", wi_id)
@@ -232,6 +240,7 @@ def _export_board_config(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export board definitions including columns and rows (swimlanes)."""
     if dry_run:
@@ -242,6 +251,7 @@ def _export_board_config(
             "work", "boards",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         boards = data.get("value", data) if isinstance(data, dict) else data
         if not isinstance(boards, list):
@@ -297,6 +307,7 @@ def _export_team_settings(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export team settings and iteration capacities."""
     if dry_run:
@@ -308,6 +319,7 @@ def _export_team_settings(
             org_url=org_url,
             project=project_name,
             paginate=False,
+            timeout=timeout,
         )
         out_path = boards_dir / "team_settings.json"
         writers.write_json(out_path, redact.redact(data))

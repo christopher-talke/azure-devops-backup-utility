@@ -23,12 +23,18 @@ def backup_git(
     pat: str = "",
     dry_run: bool = False,
     max_items: int = 0,
+    since: str = "",
+    timeout: int = 120,
 ) -> None:
-    """Back up all Git repositories for a project."""
+    """Back up all Git repositories for a project.
+
+    *since* is accepted for API consistency but not used — mirror clones
+    always fetch the complete repository history.
+    """
     logger.info("Backing up Git repos for project '%s' …", project_name)
 
     try:
-        repos = azcli.az("repos", "list", org_url=org_url, project=project_name)
+        repos = azcli.az("repos", "list", org_url=org_url, project=project_name, timeout=timeout)
     except Exception as exc:
         logger.warning("Failed to list repos for '%s': %s", project_name, exc)
         inventory.add_error("git", f"{project_name}/repos", str(exc), pat=pat)
@@ -51,8 +57,8 @@ def backup_git(
         if not remote_url:
             logger.warning("No remoteUrl for repo '%s', skipping clone", repo_name)
             continue
-        _clone_repo(paths, inventory, org_url, project_name, repo_name, remote_url, pat, dry_run=dry_run)
-        _export_repo_metadata(paths, inventory, org_url, project_name, repo, dry_run=dry_run)
+        _clone_repo(paths, inventory, org_url, project_name, repo_name, remote_url, pat, dry_run=dry_run, timeout=timeout)
+        _export_repo_metadata(paths, inventory, org_url, project_name, repo, dry_run=dry_run, timeout=timeout)
 
 
 def _clone_repo(
@@ -65,13 +71,14 @@ def _clone_repo(
     pat: str,
     *,
     dry_run: bool,
+    timeout: int = 120,
 ) -> None:
     dest = paths.repo_dir(project_name, repo_name)
     if dry_run:
         logger.info("[DRY-RUN] Would clone %s -> %s", repo_name, dest)
         return
     try:
-        azcli.git_clone(remote_url, dest, pat=pat)
+        azcli.git_clone(remote_url, dest, pat=pat, timeout=max(timeout, 600))
         inventory.add("git", f"{project_name}/{repo_name}", str(dest))
         logger.info("Cloned repo '%s'", repo_name)
     except Exception as exc:
@@ -87,6 +94,7 @@ def _export_repo_metadata(
     repo: dict[str, Any],
     *,
     dry_run: bool,
+    timeout: int = 120,
 ) -> None:
     """Export branches, tags, policies, and permissions for a repository."""
     repo_name = repo.get("name", "unknown")
@@ -103,6 +111,7 @@ def _export_repo_metadata(
             project=project_name,
             route_parameters={"repositoryId": repo_id},
             query_parameters={"filter": "heads/"},
+            timeout=timeout,
         )
         items = branches.get("value", branches) if isinstance(branches, dict) else branches
         dest = paths.repo_dir(project_name, repo_name)
@@ -118,6 +127,7 @@ def _export_repo_metadata(
             project=project_name,
             route_parameters={"repositoryId": repo_id},
             query_parameters={"filter": "tags/"},
+            timeout=timeout,
         )
         items = tags.get("value", tags) if isinstance(tags, dict) else tags
         dest = paths.repo_dir(project_name, repo_name)
@@ -132,6 +142,7 @@ def _export_repo_metadata(
             org_url=org_url,
             project=project_name,
             query_parameters={"repositoryId": repo_id},
+            timeout=timeout,
         )
         items = policies.get("value", policies) if isinstance(policies, dict) else policies
         dest = paths.repo_dir(project_name, repo_name)
@@ -148,6 +159,7 @@ def _export_repo_metadata(
                 org_url=org_url,
                 project=project_name,
                 query_parameters={"token": token},
+                timeout=timeout,
             )
             items = data.get("value", data) if isinstance(data, dict) else data
             dest = paths.repo_dir(project_name, repo_name)

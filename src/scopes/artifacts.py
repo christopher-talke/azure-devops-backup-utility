@@ -23,8 +23,14 @@ def backup_artifacts(
     pat: str = "",
     dry_run: bool = False,
     max_items: int = 0,
+    since: str = "",
+    timeout: int = 120,
 ) -> None:
-    """Back up Azure Artifacts feeds and package metadata for a project."""
+    """Back up Azure Artifacts feeds and package metadata for a project.
+
+    *since* is accepted for API consistency but not currently used — the
+    Azure Artifacts API does not support date-based filtering.
+    """
     logger.info("Backing up artifacts for project '%s' …", project_name)
 
     if dry_run:
@@ -39,6 +45,7 @@ def backup_artifacts(
             "packaging", "feeds",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         feeds = data.get("value", data) if isinstance(data, dict) else data
         if not isinstance(feeds, list):

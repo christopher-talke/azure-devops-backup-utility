@@ -14,9 +14,9 @@ from paths import BackupPaths
 logger = logging.getLogger(__name__)
 
 
-def list_projects(org_url: str) -> list[dict[str, Any]]:
+def list_projects(org_url: str, *, timeout: int = 120) -> list[dict[str, Any]]:
     """Return the list of projects in the organisation."""
-    data = azcli.az("devops", "project", "list", org_url=org_url)
+    data = azcli.az("devops", "project", "list", org_url=org_url, timeout=timeout)
     if isinstance(data, dict):
         return data.get("value", [])
     return data if isinstance(data, list) else []
@@ -30,28 +30,29 @@ def backup_project_metadata(
     *,
     pat: str = "",
     dry_run: bool = False,
+    timeout: int = 120,
 ) -> None:
     """Export project metadata: project properties, teams, areas, iterations, permissions."""
     logger.info("Backing up metadata for project '%s' …", project_name)
     meta_dir = paths.metadata_dir(project_name)
 
     # Project properties
-    _export_project(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat)
+    _export_project(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat, timeout=timeout)
     # Teams
-    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat,
+    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat, timeout=timeout,
                    label="teams", area="core", resource="teams", list_key="value")
     # Areas
-    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat,
+    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat, timeout=timeout,
                    label="areas", area="wit", resource="classificationNodes",
                    route_parameters={"structureGroup": "areas"},
                    query_parameters={"$depth": "10"})
     # Iterations
-    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat,
+    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat, timeout=timeout,
                    label="iterations", area="wit", resource="classificationNodes",
                    route_parameters={"structureGroup": "iterations"},
                    query_parameters={"$depth": "10"})
     # Project-level permissions/ACL
-    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat,
+    _export_invoke(paths, inventory, org_url, project_name, meta_dir, dry_run=dry_run, pat=pat, timeout=timeout,
                    label="permissions_acl", area="security", resource="accesscontrollists")
 
 
@@ -64,12 +65,13 @@ def _export_project(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     if dry_run:
         logger.info("[DRY-RUN] Would export project.json for %s", project_name)
         return
     try:
-        data = azcli.az("devops", "project", "show", "--project", project_name, org_url=org_url)
+        data = azcli.az("devops", "project", "show", "--project", project_name, org_url=org_url, timeout=timeout)
         out_path = meta_dir / "project.json"
         writers.write_json(out_path, redact.redact(data))
         inventory.add("project", project_name, str(out_path))
@@ -88,6 +90,7 @@ def _export_invoke(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
     label: str,
     area: str,
     resource: str,
@@ -106,6 +109,7 @@ def _export_invoke(
             project=project_name,
             route_parameters=route_parameters,
             query_parameters=query_parameters,
+            timeout=timeout,
         )
         items = data
         if list_key and isinstance(data, dict):

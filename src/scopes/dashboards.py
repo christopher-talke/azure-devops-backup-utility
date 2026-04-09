@@ -22,6 +22,7 @@ def backup_dashboards(
     *,
     pat: str = "",
     dry_run: bool = False,
+    timeout: int = 120,
 ) -> None:
     """Back up dashboards, widgets, and notification subscriptions."""
     logger.info("Backing up dashboards and notifications for project '%s' …", project_name)
@@ -32,8 +33,8 @@ def backup_dashboards(
 
     dash_dir = paths.dashboards_dir(project_name)
 
-    _export_dashboards(dash_dir, inventory, org_url, project_name, pat=pat)
-    _export_notifications(dash_dir, inventory, org_url, project_name, pat=pat)
+    _export_dashboards(dash_dir, inventory, org_url, project_name, pat=pat, timeout=timeout)
+    _export_notifications(dash_dir, inventory, org_url, project_name, pat=pat, timeout=timeout)
 
 
 def _export_dashboards(
@@ -43,6 +44,7 @@ def _export_dashboards(
     project_name: str,
     *,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export dashboards and their widget configurations."""
     try:
@@ -50,6 +52,7 @@ def _export_dashboards(
             "dashboard", "dashboards",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         dashboards = data.get("value", data) if isinstance(data, dict) else data
         if not isinstance(dashboards, list):
@@ -93,6 +96,7 @@ def _export_notifications(
     project_name: str,
     *,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export notification subscriptions for the project."""
     try:
@@ -100,6 +104,7 @@ def _export_notifications(
             "notification", "subscriptions",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = dash_dir / "notification_subscriptions.json"

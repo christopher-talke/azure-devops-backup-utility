@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import datetime
 import logging
+import signal
+import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -19,9 +22,22 @@ from scopes import (
 
 logger = logging.getLogger(__name__)
 
+# Shutdown flag — set by signal handler on SIGINT / SIGTERM.
+_shutdown = threading.Event()
+
+
+def _handle_shutdown(signum: int, frame: Any) -> None:
+    logger.warning("Received signal %d — shutting down gracefully after current scope …", signum)
+    _shutdown.set()
+
 
 def run_backup(cfg: BackupConfig) -> int:
     """Execute the full backup and return an exit code (0 = success)."""
+    # Register graceful shutdown handlers
+    signal.signal(signal.SIGINT, _handle_shutdown)
+    if sys.platform != "win32":
+        signal.signal(signal.SIGTERM, _handle_shutdown)
+
     timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     root = Path(cfg.output_dir)
     bp = BackupPaths(root, cfg.org_url, timestamp)
@@ -42,6 +58,13 @@ def run_backup(cfg: BackupConfig) -> int:
     if cfg.dry_run:
         logger.info("DRY-RUN mode – no data will be written")
 
+    if sys.platform == "win32" and len(str(bp.base.resolve())) > 200:
+        logger.warning(
+            "Output path is %d characters — long paths on Windows may exceed MAX_PATH (260). "
+            "Consider a shorter --output-dir or enable long paths in Windows registry.",
+            len(str(bp.base.resolve())),
+        )
+
     # Ensure Azure DevOps extension
     if not cfg.dry_run:
         try:
@@ -57,7 +80,7 @@ def run_backup(cfg: BackupConfig) -> int:
     # Organisation-level backup
     if "org" in active:
         try:
-            org.backup_org(bp, inv, cfg.org_url, pat=cfg.pat, dry_run=cfg.dry_run)
+            org.backup_org(bp, inv, cfg.org_url, pat=cfg.pat, dry_run=cfg.dry_run, timeout=cfg.timeout)
         except Exception as exc:
             logger.error("Organisation backup failed: %s", exc)
             inv.add_error("org", "org", str(exc), pat=cfg.pat)
@@ -75,7 +98,7 @@ def run_backup(cfg: BackupConfig) -> int:
                 logger.info("[DRY-RUN] Would list projects")
                 project_list = [{"name": p} for p in cfg.projects] if cfg.projects else []
             else:
-                project_list = projects.list_projects(cfg.org_url)
+                project_list = projects.list_projects(cfg.org_url, timeout=cfg.timeout)
                 if cfg.projects:
                     allowed = {p.lower() for p in cfg.projects}
                     project_list = [p for p in project_list if p.get("name", "").lower() in allowed]
@@ -89,6 +112,11 @@ def run_backup(cfg: BackupConfig) -> int:
 
     # Process each project
     for proj in project_list:
+        if _shutdown.is_set():
+            logger.warning("Shutdown requested — writing partial indexes and exiting")
+            _write_indexes(bp, inv)
+            return 130
+
         pname = proj.get("name", "unknown")
         logger.info("Processing project '%s' …", pname)
 
@@ -102,7 +130,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 projects.backup_project_metadata,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run,
+                dry_run=cfg.dry_run, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="projects", name=pname, pat=cfg.pat,
             )
@@ -111,7 +139,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 git.backup_git,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="git", name=pname, pat=cfg.pat,
             )
@@ -120,7 +148,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 boards.backup_boards,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="boards", name=pname, pat=cfg.pat,
             )
@@ -129,7 +157,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 pipelines.backup_pipelines,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="pipelines", name=pname, pat=cfg.pat,
             )
@@ -138,7 +166,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 permissions.backup_permissions,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run,
+                dry_run=cfg.dry_run, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="permissions", name=pname, pat=cfg.pat,
             )
@@ -147,7 +175,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 pull_requests.backup_pull_requests,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="pull_requests", name=pname, pat=cfg.pat,
             )
@@ -156,7 +184,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 artifacts.backup_artifacts,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="artifacts", name=pname, pat=cfg.pat,
             )
@@ -165,7 +193,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 dashboards.backup_dashboards,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run,
+                dry_run=cfg.dry_run, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="dashboards", name=pname, pat=cfg.pat,
             )
@@ -174,7 +202,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 wikis.backup_wikis,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="wikis", name=pname, pat=cfg.pat,
             )
@@ -183,7 +211,7 @@ def run_backup(cfg: BackupConfig) -> int:
             _safe_call(
                 testplans.backup_testplans,
                 bp, inv, cfg.org_url, pname,
-                dry_run=cfg.dry_run, max_items=cfg.max_items,
+                dry_run=cfg.dry_run, max_items=cfg.max_items, since=cfg.since, timeout=cfg.timeout,
                 fail_fast=cfg.fail_fast,
                 inv=inv, category="testplans", name=pname, pat=cfg.pat,
             )

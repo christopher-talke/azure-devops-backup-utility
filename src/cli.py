@@ -6,7 +6,9 @@ import logging
 import sys
 from pathlib import Path
 
-from config import build_config
+from config import ALL_COMPONENTS, build_config
+
+_COMPONENT_LIST = ",".join(sorted(ALL_COMPONENTS))
 
 
 def _build_parser():
@@ -16,8 +18,8 @@ def _build_parser():
     parser = argparse.ArgumentParser(prog="ado-backup", description="Azure DevOps Backup Utility – back up organisations, projects, repos, boards, pipelines and more.")
     parser.add_argument("--org-url", help="Azure DevOps organisation URL (default: $AZURE_DEVOPS_ORG_URL)")
     parser.add_argument("--projects", default="all", help="Comma-separated project names or 'all' (default: all)")
-    parser.add_argument("--include", help="Comma-separated components to include: org,projects,git,boards,pipelines,permissions,pull_requests,artifacts,dashboards")
-    parser.add_argument("--exclude", help="Comma-separated components to exclude: org,projects,git,boards,pipelines,permissions,pull_requests,artifacts,dashboards")
+    parser.add_argument("--include", help=f"Comma-separated components to include: {_COMPONENT_LIST}")
+    parser.add_argument("--exclude", help=f"Comma-separated components to exclude: {_COMPONENT_LIST}")
     parser.add_argument("--since", help="ISO timestamp for incremental-like filtering")
     parser.add_argument("--max-items", type=int, default=0, help="Per-entity item limit (0 = unlimited)")
     parser.add_argument("--compress", choices=["repos", "project", "all"], help="Compress output: repos (each clone), project (per-project), all (entire backup)")

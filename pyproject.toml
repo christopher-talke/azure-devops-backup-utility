@@ -14,7 +14,7 @@ ado-backup = "cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-py-modules = ["cli", "config", "azcli", "backoff", "paginator", "paths", "redact", "writers", "inventory", "orchestrator", "__init__", "__main__"]
+py-modules = ["cli", "config", "azcli", "backoff", "compress", "paginator", "paths", "redact", "verify", "writers", "inventory", "orchestrator", "__init__", "__main__"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

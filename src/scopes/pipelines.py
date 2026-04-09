@@ -24,18 +24,19 @@ def backup_pipelines(
     dry_run: bool = False,
     max_items: int = 0,
     since: str = "",
+    timeout: int = 120,
 ) -> None:
     """Back up pipeline definitions and runs index."""
     logger.info("Backing up pipelines for project '%s' …", project_name)
     pipe_dir = paths.pipelines_dir(project_name)
 
-    _export_pipelines(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
+    _export_pipelines(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
     _export_runs_index(paths, pipe_dir, inventory, org_url, project_name,
-                       dry_run=dry_run, max_items=max_items, pat=pat, since=since)
-    _export_environments(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
-    _export_secure_files(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
-    _export_task_groups(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
-    _export_release_definitions(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat)
+                       dry_run=dry_run, max_items=max_items, pat=pat, since=since, timeout=timeout)
+    _export_environments(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export_secure_files(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export_task_groups(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
+    _export_release_definitions(pipe_dir, inventory, org_url, project_name, dry_run=dry_run, pat=pat, timeout=timeout)
 
 
 def _export_pipelines(
@@ -46,12 +47,13 @@ def _export_pipelines(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     if dry_run:
         logger.info("[DRY-RUN] Would export pipelines for %s", project_name)
         return
     try:
-        data = azcli.az("pipelines", "list", org_url=org_url, project=project_name)
+        data = azcli.az("pipelines", "list", org_url=org_url, project=project_name, timeout=timeout)
         items = data if isinstance(data, list) else (data.get("value", []) if isinstance(data, dict) else [])
         out_path = pipe_dir / "pipelines.json"
         writers.write_json(out_path, redact.redact(items))
@@ -73,6 +75,7 @@ def _export_runs_index(
     max_items: int = 0,
     pat: str = "",
     since: str = "",
+    timeout: int = 120,
 ) -> None:
     if dry_run:
         logger.info("[DRY-RUN] Would export pipeline runs index for %s", project_name)
@@ -88,6 +91,7 @@ def _export_runs_index(
             org_url=org_url,
             project=project_name,
             query_parameters=qp if qp else None,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         if not isinstance(items, list):
@@ -116,6 +120,7 @@ def _export_environments(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export pipeline environments and their check configurations."""
     if dry_run:
@@ -126,6 +131,7 @@ def _export_environments(
             "distributedtask", "environments",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = pipe_dir / "environments.json"
@@ -146,6 +152,7 @@ def _export_secure_files(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export secure file metadata (names only, never contents)."""
     if dry_run:
@@ -156,6 +163,7 @@ def _export_secure_files(
             "distributedtask", "securefiles",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = pipe_dir / "secure_files.json"
@@ -176,6 +184,7 @@ def _export_task_groups(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export classic task groups."""
     if dry_run:
@@ -186,6 +195,7 @@ def _export_task_groups(
             "distributedtask", "taskgroups",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = pipe_dir / "task_groups.json"
@@ -206,6 +216,7 @@ def _export_release_definitions(
     *,
     dry_run: bool,
     pat: str = "",
+    timeout: int = 120,
 ) -> None:
     """Export classic release definitions.
 
@@ -221,6 +232,7 @@ def _export_release_definitions(
             "release", "definitions",
             org_url=org_url,
             project=project_name,
+            timeout=timeout,
         )
         items = data.get("value", data) if isinstance(data, dict) else data
         out_path = pipe_dir / "release_definitions.json"
