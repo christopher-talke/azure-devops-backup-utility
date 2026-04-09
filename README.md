@@ -6,9 +6,7 @@ This project has been generated with the assistance of Anthropic's Claude LLM mo
 Please be aware of this before running it against production systems, and take the time to understand how the project works before using it.
 </td></tr></table>
 
-A non-interactive backup tool for Azure DevOps that uses only Azure CLI (`az devops`) commands and Git CLI to retrieve and persist data. 
-
-Designed for CI/CD pipelines with zero external Python dependencies.
+A non-interactive backup tool for Azure DevOps that uses only Azure CLI (`az devops`) commands and Git CLI to retrieve and persist data. Designed for CI/CD pipelines with zero external Python dependencies.
 
 ## Features
 
@@ -27,6 +25,11 @@ Designed for CI/CD pipelines with zero external Python dependencies.
 - **Input validation** - path traversal protection, config value whitelisting, output directory sanitisation
 - **Configurable** - CLI flags, environment variables, and optional YAML config file
 - **Compression** - per-repo, per-project, or full backup compression with archive verification
+- **Dashboard** - lightweight Azure Function with web UI for reviewing backup history, errors, inventory, and verification results
+
+## Dashboard Preview
+
+[![Dashboard Screenshot](dashboard/preview.png)](dashboard/preview.png)
 
 ## Feature Support
 
