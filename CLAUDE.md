@@ -38,6 +38,9 @@ src/
 
 tests/              # pytest unit tests (no integration tests; mocking az CLI)
 examples/           # config.yaml, GitHub Actions, Azure Pipelines workflow examples
+dashboard/          # Azure Function + vanilla JS frontend for backup observability
+  api/              # Python Azure Functions v2 endpoints (reads _indexes/ from Blob Storage)
+  frontend/         # Static HTML/CSS/JS served by the function app
 ```
 
 ## How to run

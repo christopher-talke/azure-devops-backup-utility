@@ -139,13 +139,68 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 
 ### Authentication
 
-The tool uses Azure CLI authentication.
+The tool uses Azure CLI authentication. There are two ways to provide credentials:
 
-In Azure DevOps Pipelines, configure the `AZURE_DEVOPS_EXT_PAT` environment variable to `$(System.AccessToken)` so the pipeline's system token is used for all API calls.
+1. **Pipeline Identity (recommended)** — use the built-in Build Service account in Azure DevOps Pipelines.
+2. **Personal Access Token (PAT)** — for local use, non-ADO CI systems, or when pipeline identity permissions cannot be configured.
 
-A Personal Access Token (PAT) can optionally be provided via `AZURE_DEVOPS_EXT_PAT` or `SYSTEM_ACCESSTOKEN` environment variables. If no PAT is set, the tool relies on whatever authentication the `az` CLI already has configured.
+When a token (system or PAT) is provided via `AZURE_DEVOPS_EXT_PAT` or `SYSTEM_ACCESSTOKEN`, it is also used for `git clone --mirror` authentication via git config environment variables. The token never appears in process arguments or on-disk git config files. If no token is set, the tool relies on whatever authentication the `az` CLI already has configured.
 
-When a PAT is provided, it is used for `git clone --mirror` authentication via git config environment variables. The PAT never appears in process arguments or on-disk git config files.
+#### Pipeline Identity (Recommended)
+
+When running as an Azure DevOps Pipeline, the pipeline already has an identity: the **Build Service** account. Using `$(System.AccessToken)` (see [`examples/azure-pipelines.yml`](examples/azure-pipelines.yml)) feeds this token through the `AZURE_DEVOPS_EXT_PAT` environment variable. No PAT creation or manual rotation is needed.
+
+**Why this is preferred over a PAT:**
+
+- Tokens are automatically rotated every pipeline run (24-hour lifetime).
+- Token scope is limited to the pipeline's execution context.
+- No shared secrets to create, store, or rotate.
+- Eliminates risk of PAT leakage or expiry-related backup failures.
+- Audit trail ties every API call to a specific pipeline run in Azure DevOps.
+
+**Setup steps:**
+
+1. **Enable OAuth token access.** In your pipeline YAML, the system token is available by default. In classic pipelines, check *Allow scripts to access the OAuth token* on the Agent Job options.
+
+2. **Expand job authorisation scope (cross-project backups).** By default, the build service identity can only access the project that contains the pipeline. To back up other projects:
+   - Go to **Organisation Settings → Pipelines → Settings**.
+   - Set *Limit job authorization scope to current project for non-release pipelines* to **Off**.
+   - Set *Limit job authorization scope to referenced Azure DevOps repositories* to **Off** (required for cloning repos in other projects).
+
+   > **Targeted alternative:** If you only back up specific projects, keep these limits **On** and instead grant the build service identity access per-project (step 3).
+
+3. **Grant the Build Service identity Reader access.** For each project being backed up, go to **Project Settings → Permissions** and add the build service account to the **Readers** group. There are two identities to consider:
+   - `{Project Name} Build Service ({Org Name})` — project-scoped identity (used when the pipeline is in the same project).
+   - `Project Collection Build Service ({Org Name})` — collection-scoped identity (broader, used when job scope limits are disabled).
+
+   Add whichever identity your pipeline uses to the Readers group.
+
+4. **Grant feed access for Artifacts.** If backing up Artifacts, go to **Artifacts → Feed Settings → Permissions** and add the Build Service identity as a **Reader** for each feed.
+
+5. **Wire the token in YAML.** The `env:` block in your pipeline passes the system token:
+   ```yaml
+   env:
+     AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+     AZURE_DEVOPS_ORG_URL: $(System.CollectionUri)
+   ```
+
+**Permissions required by backup component:**
+
+| Component | ADO Permission | Where to set |
+|-----------|---------------|--------------|
+| `projects` | View project-level information | Project Settings → Permissions (Readers group) |
+| `git` | Read (repositories) | Project Settings → Repositories → Security |
+| `boards` | View work items | Project Settings → Permissions (Readers group) |
+| `pipelines` | View builds, View build definitions | Project Settings → Pipelines → Security |
+| `pull_requests` | Read (repositories) | Project Settings → Repositories → Security |
+| `artifacts` | Read (feed) | Artifacts → Feed Settings → Permissions |
+| `permissions` | View identity information | Organisation Settings → Permissions |
+| `dashboards` | Read (dashboards) | Project Settings → Permissions (Readers group) |
+| `wikis` | Read (wiki) | Project Settings → Permissions (Readers group) |
+| `testplans` | View test runs | Project Settings → Permissions (Readers group) |
+| `org` | View instance-level information | Organisation Settings → Permissions |
+
+> **Tip:** The Readers group in most projects already grants the majority of these permissions. You typically only need to explicitly grant feed access (Artifacts) and verify repository-level read permissions.
 
 #### PAT Scopes (if using a PAT)
 
@@ -425,6 +480,19 @@ Ready-to-use pipeline definitions are in the [`examples/`](examples/) folder:
 Copy the relevant file into your project and adjust variables/secrets as described in the file comments.
 
 GitHub Actions examples pin actions to commit SHAs for supply chain security. Azure Pipelines examples use schedule-only triggers (no push triggers) to prevent compromised commits from triggering backup runs.
+
+## Observability Dashboard
+
+A lightweight Azure Function with a web UI is included in the [`dashboard/`](dashboard/) directory. It reads the `_indexes/` metadata files from Azure Blob Storage and lets administrators quickly review:
+
+- **Backup history** — list of all runs with entity counts and error counts
+- **Errors** — per-run error table (category, name, message, timestamp)
+- **Inventory** — searchable list of backed-up entities with SHA-256 checksums
+- **Verification results** — pass/fail/skip status for sampled items (when `--verify` was used)
+
+The dashboard is read-only and informational only — it does not serve raw backup data. See [`dashboard/README.md`](dashboard/README.md) for setup and deployment instructions.
+
+The `azure-pipelines-blob-storage.yml` example pipeline automatically uploads `_indexes/` metadata as raw blobs alongside the compressed archive, so the dashboard can read them without decompression.
 
 ## Contributing
 

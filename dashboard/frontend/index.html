@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADO Backup Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- ADO-style top chrome -->
+  <header id="topbar">
+    <div id="topbar-brand">
+      <svg id="ado-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M0 10.498l2.083-2.165V5.25L5.75 4 18 7.952v2.474l-4.709 1.625-6.167-2.006v3.538l-2.62.785L0 12.58v-2.082z" fill="#fff"/>
+      </svg>
+      <span id="topbar-product">Azure DevOps Backup</span>
+      <span id="topbar-separator">|</span>
+      <span id="topbar-title">Dashboard</span>
+    </div>
+  </header>
+
+  <!-- Hub layout -->
+  <div id="hub">
+
+    <!-- Left list pane — looks like ADO's pipeline runs sidebar -->
+    <div id="list-pane">
+      <div id="list-pane-header">
+        <span class="pane-title">Backup Runs</span>
+      </div>
+      <div id="backup-list">
+        <div class="list-loading">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <!-- Right content pane -->
+    <div id="content-pane">
+
+      <!-- Page title / breadcrumb bar -->
+      <div id="content-header">
+        <h2 id="content-title" class="empty-state-title">Select a backup run</h2>
+        <p id="content-subtitle" class="empty-state-sub" hidden></p>
+      </div>
+
+      <!-- ADO pivot tabs -->
+      <nav id="pivot" aria-label="Backup details">
+        <button class="pivot-item active" data-tab="summary">Summary</button>
+        <button class="pivot-item" data-tab="errors">
+          Errors
+          <span id="errors-badge" class="pivot-count" hidden></span>
+        </button>
+        <button class="pivot-item" data-tab="inventory">Inventory</button>
+        <button class="pivot-item" data-tab="verification">Verification</button>
+      </nav>
+
+      <!-- Tab panels -->
+      <div id="tab-content">
+
+        <section id="tab-summary" class="tab-panel active">
+          <div id="empty-prompt">
+            <div class="empty-icon">&#128193;</div>
+            <p>Select a backup run from the left to view its details.</p>
+          </div>
+          <div id="summary-content" hidden>
+            <div id="stat-strip"></div>
+            <div id="limits-section" hidden>
+              <h3 class="section-heading">Limits Applied</h3>
+              <div id="limits-content"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-errors" class="tab-panel" hidden>
+          <div class="panel-toolbar">
+            <span id="errors-count-label" class="toolbar-label"></span>
+          </div>
+          <table class="ado-table" id="errors-table">
+            <thead>
+              <tr>
+                <th style="width:110px">Category</th>
+                <th style="width:240px">Name</th>
+                <th>Error</th>
+                <th style="width:180px">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section id="tab-inventory" class="tab-panel" hidden>
+          <div class="panel-toolbar">
+            <label class="toolbar-label" for="inventory-filter">Category</label>
+            <select id="inventory-filter" class="ado-select">
+              <option value="">All</option>
+            </select>
+            <span id="inventory-count-label" class="toolbar-label" style="margin-left:12px"></span>
+          </div>
+          <table class="ado-table" id="inventory-table">
+            <thead>
+              <tr>
+                <th style="width:110px">Category</th>
+                <th>Name</th>
+                <th style="width:70px">Count</th>
+                <th style="width:160px">SHA-256</th>
+                <th style="width:180px">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section id="tab-verification" class="tab-panel" hidden>
+          <div id="verification-summary-bar" class="stat-bar" hidden></div>
+          <div id="no-verification-msg" class="info-msg" hidden>
+            No verification report found. Re-run the backup with <code>--verify</code> to enable integrity checks.
+          </div>
+          <table class="ado-table" id="verification-table">
+            <thead>
+              <tr>
+                <th style="width:110px">Category</th>
+                <th style="width:180px">Project</th>
+                <th>Item</th>
+                <th style="width:90px">Status</th>
+                <th style="width:180px">Check</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+      </div><!-- #tab-content -->
+    </div><!-- #content-pane -->
+  </div><!-- #hub -->
+
+  <script src="/app.js"></script>
+</body>
+</html>

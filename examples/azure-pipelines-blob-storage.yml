@@ -45,25 +45,53 @@ steps:
       AZURE_DEVOPS_ORG_URL: $(System.CollectionUri)
 
   - task: AzureCLI@2
-    displayName: "Upload backup to Azure Blob Storage"
+    displayName: "Upload backup indexes to Azure Blob Storage"
     inputs:
       azureSubscription: "AzureSubscription"
       scriptType: bash
       scriptLocation: inlineScript
       inlineScript: |
-        ARCHIVE=$(find $(Build.ArtifactStagingDirectory)/ado-backup -name '*.tar.gz' | head -1)
+        # Upload _indexes/ as raw blobs so the observability dashboard can read
+        # manifest.json, inventory.json, errors.jsonl, and verification_report.json
+        # without decompressing the archive.
+        BACKUP_ROOT=$(Build.ArtifactStagingDirectory)/ado-backup
+        INDEXES_DIR=$(find "$BACKUP_ROOT" -type d -name '_indexes' | head -1)
+        if [ -n "$INDEXES_DIR" ]; then
+          # Compute the blob prefix by stripping the local backup root
+          BLOB_PREFIX=${INDEXES_DIR#"$BACKUP_ROOT/"}
+          az storage blob upload-batch \
+            --account-name $(STORAGE_ACCOUNT) \
+            --destination $(CONTAINER_NAME) \
+            --destination-path "$BLOB_PREFIX" \
+            --source "$INDEXES_DIR" \
+            --overwrite
+        else
+          echo "##vso[task.logissue type=warning]No _indexes directory found"
+        fi
+
+  - task: AzureCLI@2
+    displayName: "Upload backup archive to Azure Blob Storage"
+    inputs:
+      azureSubscription: "AzureSubscription"
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        BACKUP_ROOT=$(Build.ArtifactStagingDirectory)/ado-backup
+        ARCHIVE=$(find "$BACKUP_ROOT" -name '*.tar.gz' | head -1)
         if [ -z "$ARCHIVE" ]; then
           echo "##vso[task.logissue type=warning]No archive found – uploading raw directory"
           az storage blob upload-batch \
             --account-name $(STORAGE_ACCOUNT) \
             --destination $(CONTAINER_NAME) \
-            --source $(Build.ArtifactStagingDirectory)/ado-backup \
+            --source "$BACKUP_ROOT" \
             --overwrite
         else
+          # Place the archive alongside the _indexes/ directory
+          BLOB_PREFIX=$(dirname "${ARCHIVE#"$BACKUP_ROOT/"}")
           az storage blob upload \
             --account-name $(STORAGE_ACCOUNT) \
             --container-name $(CONTAINER_NAME) \
-            --name "$(Build.BuildNumber)/${ARCHIVE##*/}" \
+            --name "$BLOB_PREFIX/backup.tar.gz" \
             --file "$ARCHIVE" \
             --overwrite
         fi

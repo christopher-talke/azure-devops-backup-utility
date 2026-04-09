@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADO Backup Dashboard — Demo</title>
+<style>
+/* ADO Backup Dashboard — Azure DevOps Fluent Design */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --topbar-bg:       #1e1e1e;
+  --topbar-fg:       #ffffff;
+  --topbar-sep:      rgba(255,255,255,0.3);
+  --bg-canvas:       #f3f2f1;
+  --bg-panel:        #ffffff;
+  --bg-list-header:  #f3f2f1;
+  --bg-table-header: #faf9f8;
+  --bg-hover:        #f3f2f1;
+  --bg-selected:     #e8f0fe;
+  --border-subtle:   #edebe9;
+  --border-mid:      #d2d0ce;
+  --border-selected: #0078d4;
+  --text-primary:    #161514;
+  --text-secondary:  #605e5c;
+  --text-disabled:   #a19f9d;
+  --blue:            #0078d4;
+  --blue-dark:       #106ebe;
+  --green-bg:        #dff6dd;
+  --green-fg:        #107c10;
+  --red-bg:          #fde7e9;
+  --red-fg:          #a4262c;
+  --yellow-bg:       #fff4ce;
+  --yellow-fg:       #7a6400;
+  --grey-bg:         #f0f0f0;
+  --grey-fg:         #605e5c;
+  --font: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --font-mono: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  --topbar-h: 48px;
+  --list-pane-w: 288px;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#topbar {
+  height: var(--topbar-h);
+  background: var(--topbar-bg);
+  color: var(--topbar-fg);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  flex-shrink: 0;
+  user-select: none;
+}
+#topbar-brand { display: flex; align-items: center; gap: 10px; }
+#ado-icon { width: 18px; height: 18px; flex-shrink: 0; }
+#topbar-product { font-size: 14px; font-weight: 600; letter-spacing: 0.01em; }
+#topbar-separator { color: var(--topbar-sep); font-weight: 300; font-size: 16px; }
+#topbar-title { font-size: 14px; color: rgba(255,255,255,0.8); }
+
+#hub { display: flex; flex: 1; overflow: hidden; }
+
+#list-pane {
+  width: var(--list-pane-w);
+  min-width: var(--list-pane-w);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#list-pane-header {
+  padding: 12px 16px 10px;
+  background: var(--bg-list-header);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.pane-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+#backup-list { overflow-y: auto; flex: 1; }
+.list-loading { padding: 20px 16px; color: var(--text-secondary); font-size: 13px; }
+
+.backup-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  position: relative;
+}
+.backup-item::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background 0.1s;
+}
+.backup-item:hover { background: var(--bg-hover); }
+.backup-item:hover::before { background: var(--border-mid); }
+.backup-item.selected { background: var(--bg-selected); }
+.backup-item.selected::before { background: var(--blue); }
+
+.run-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.run-status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-ok    { background: var(--green-fg); }
+.dot-warn  { background: #ffb900; }
+.dot-error { background: var(--red-fg); }
+.run-meta { font-size: 12px; color: var(--text-secondary); margin-left: 17px; }
+.run-org { font-weight: 600; color: var(--text-secondary); }
+
+#content-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+#content-header {
+  padding: 16px 24px 0;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+#content-title { font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.empty-state-title { color: var(--text-secondary); font-weight: 400; }
+#content-subtitle { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+
+#pivot {
+  display: flex;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+.pivot-item {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.1s, border-color 0.1s;
+  margin-bottom: -1px;
+}
+.pivot-item:hover { color: var(--text-primary); border-bottom-color: var(--border-mid); }
+.pivot-item.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+.pivot-count {
+  background: var(--red-fg);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+#tab-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+#empty-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  gap: 12px;
+}
+.empty-icon { font-size: 48px; line-height: 1; }
+
+#stat-strip { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 2px;
+  padding: 14px 18px;
+  min-width: 160px;
+}
+.stat-card .stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.stat-card .stat-value { font-size: 22px; font-weight: 600; color: var(--text-primary); line-height: 1.1; }
+.stat-card .stat-value.value-error { color: var(--red-fg); }
+.stat-card .stat-value.value-ok    { color: var(--green-fg); }
+
+.section-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+#limits-content { display: flex; flex-wrap: wrap; gap: 8px; }
+.limit-chip {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-mid);
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.limit-chip strong { color: var(--text-primary); }
+
+.stat-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 2px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.panel-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.toolbar-label { font-size: 13px; color: var(--text-secondary); }
+.ado-select {
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-mid);
+  border-radius: 2px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.ado-select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+
+.ado-table {
+  width: 100%;
+  max-width: 1280px;
+  border-collapse: collapse;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 2px;
+  font-size: 13px;
+}
+.ado-table thead tr { border-bottom: 1px solid var(--border-mid); }
+.ado-table th {
+  background: var(--bg-table-header);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  white-space: nowrap;
+}
+.ado-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  vertical-align: top;
+}
+.ado-table tbody tr:last-child td { border-bottom: none; }
+.ado-table tbody tr:hover td { background: var(--bg-hover); }
+
+td.cell-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+td.cell-secondary { color: var(--text-secondary); }
+td.cell-error     { color: var(--red-fg); }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.status-pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.status-pass  { background: var(--green-bg);  color: var(--green-fg); }
+.status-pass::before  { background: var(--green-fg); }
+.status-fail  { background: var(--red-bg);    color: var(--red-fg); }
+.status-fail::before  { background: var(--red-fg); }
+.status-error { background: var(--red-bg);    color: var(--red-fg); }
+.status-error::before { background: var(--red-fg); }
+.status-skip  { background: var(--grey-bg);   color: var(--grey-fg); }
+.status-skip::before  { background: var(--border-mid); }
+.status-warn  { background: var(--yellow-bg); color: var(--yellow-fg); }
+.status-warn::before  { background: #ffb900; }
+
+.badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+.badge-ok    { background: var(--green-bg);  color: var(--green-fg); }
+.badge-warn  { background: var(--yellow-bg); color: var(--yellow-fg); }
+.badge-error { background: var(--red-bg);    color: var(--red-fg); }
+
+.info-msg {
+  background: #eff6fc;
+  border-left: 3px solid var(--blue);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  border-radius: 0 2px 2px 0;
+}
+.info-msg code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(0,0,0,0.05);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-disabled); }
+</style>
+</head>
+<body>
+
+  <header id="topbar">
+    <div id="topbar-brand">
+      <svg id="ado-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M0 10.498l2.083-2.165V5.25L5.75 4 18 7.952v2.474l-4.709 1.625-6.167-2.006v3.538l-2.62.785L0 12.58v-2.082z" fill="#fff"/>
+      </svg>
+      <span id="topbar-product">Azure DevOps Backup</span>
+      <span id="topbar-separator">|</span>
+      <span id="topbar-title">Dashboard</span>
+    </div>
+  </header>
+
+  <div id="hub">
+    <div id="list-pane">
+      <div id="list-pane-header">
+        <span class="pane-title">Backup Runs</span>
+      </div>
+      <div id="backup-list">
+        <div class="list-loading">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <div id="content-pane">
+      <div id="content-header">
+        <h2 id="content-title" class="empty-state-title">Select a backup run</h2>
+        <p id="content-subtitle" hidden></p>
+      </div>
+
+      <nav id="pivot" aria-label="Backup details">
+        <button class="pivot-item active" data-tab="summary">Summary</button>
+        <button class="pivot-item" data-tab="errors">
+          Errors
+          <span id="errors-badge" class="pivot-count" hidden></span>
+        </button>
+        <button class="pivot-item" data-tab="inventory">Inventory</button>
+        <button class="pivot-item" data-tab="verification">Verification</button>
+      </nav>
+
+      <div id="tab-content">
+
+        <section id="tab-summary" class="tab-panel active">
+          <div id="empty-prompt">
+            <div class="empty-icon">&#128193;</div>
+            <p>Select a backup run from the left to view its details.</p>
+          </div>
+          <div id="summary-content" hidden>
+            <div id="stat-strip"></div>
+            <div id="limits-section" hidden>
+              <h3 class="section-heading">Limits Applied</h3>
+              <div id="limits-content"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-errors" class="tab-panel" hidden>
+          <div class="panel-toolbar">
+            <span id="errors-count-label" class="toolbar-label"></span>
+          </div>
+          <table class="ado-table" id="errors-table">
+            <thead>
+              <tr>
+                <th style="width:110px">Category</th>
+                <th style="width:240px">Name</th>
+                <th>Error</th>
+                <th style="width:180px">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section id="tab-inventory" class="tab-panel" hidden>
+          <div class="panel-toolbar">
+            <label class="toolbar-label" for="inventory-filter">Category</label>
+            <select id="inventory-filter" class="ado-select">
+              <option value="">All</option>
+            </select>
+            <span id="inventory-count-label" class="toolbar-label" style="margin-left:12px"></span>
+          </div>
+          <table class="ado-table" id="inventory-table">
+            <thead>
+              <tr>
+                <th style="width:110px">Category</th>
+                <th>Name</th>
+                <th style="width:70px">Count</th>
+                <th style="width:160px">SHA-256</th>
+                <th style="width:180px">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section id="tab-verification" class="tab-panel" hidden>
+          <div id="verification-summary-bar" class="stat-bar" hidden></div>
+          <div id="no-verification-msg" class="info-msg" hidden>
+            No verification report found. Re-run the backup with <code>--verify</code> to enable integrity checks.
+          </div>
+          <table class="ado-table" id="verification-table">
+            <thead>
+              <tr>
+                <th style="width:110px">Category</th>
+                <th style="width:180px">Project</th>
+                <th>Item</th>
+                <th style="width:90px">Status</th>
+                <th style="width:180px">Check</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+// ─── Static demo data ──────────────────────────────────────────────────────
+
+var DEMO_BACKUPS = {
+  backups: [
+    { id:"dev.azure.com/contoso/20260410T020000Z", host:"dev.azure.com", org:"contoso", timestamp:"20260410T020000Z", started_at:"2026-04-10T02:00:00Z", completed_at:"2026-04-10T02:08:34Z", duration_seconds:514,  total_entities:3847, total_errors:0 },
+    { id:"dev.azure.com/contoso/20260403T020000Z", host:"dev.azure.com", org:"contoso", timestamp:"20260403T020000Z", started_at:"2026-04-03T02:00:00Z", completed_at:"2026-04-03T02:11:02Z", duration_seconds:662,  total_entities:3791, total_errors:3 },
+    { id:"dev.azure.com/contoso/20260327T020000Z", host:"dev.azure.com", org:"contoso", timestamp:"20260327T020000Z", started_at:"2026-03-27T02:00:00Z", completed_at:"2026-03-27T02:09:17Z", duration_seconds:557,  total_entities:3764, total_errors:0 }
+  ],
+  total: 3
+};
+
+var DEMO_MANIFESTS = {
+  "dev.azure.com/contoso/20260410T020000Z": { tool:"ado-backup", version:"0.1.0", started_at:"2026-04-10T02:00:00Z", completed_at:"2026-04-10T02:08:34Z", duration_seconds:514,  total_entities:3847, total_errors:0, limits_applied:{ max_items:500, components:["org","projects","git","boards","pipelines","pull_requests","artifacts","dashboards","wikis","testplans"] } },
+  "dev.azure.com/contoso/20260403T020000Z": { tool:"ado-backup", version:"0.1.0", started_at:"2026-04-03T02:00:00Z", completed_at:"2026-04-03T02:11:02Z", duration_seconds:662,  total_entities:3791, total_errors:3, limits_applied:{ max_items:500, since:"2026-03-27" } },
+  "dev.azure.com/contoso/20260327T020000Z": { tool:"ado-backup", version:"0.1.0", started_at:"2026-03-27T02:00:00Z", completed_at:"2026-03-27T02:09:17Z", duration_seconds:557,  total_entities:3764, total_errors:0, limits_applied:{} }
+};
+
+var DEMO_ERRORS = {
+  "dev.azure.com/contoso/20260403T020000Z": [
+    { category:"artifacts",    name:"Phoenix/feed-npm",          error:"403 Forbidden — feed reader permission not granted",    timestamp:"2026-04-03T02:05:14Z" },
+    { category:"pipelines",    name:"Phoenix/release-pipeline",  error:"Timeout after 120s fetching build history",             timestamp:"2026-04-03T02:07:31Z" },
+    { category:"wikis",        name:"Platform/platform.wiki",    error:"404 Not Found — wiki may have been deleted",            timestamp:"2026-04-03T02:10:58Z" }
+  ]
+};
+
+var DEMO_INVENTORY = [
+  { category:"org",           name:"contoso/users",                       count:142,  sha256:"a1b2c3d4e5f60001a1b2c3d4e5f60001a1b2c3d4e5f60001a1b2c3d4e5f60001", timestamp:"2026-04-10T02:00:12Z" },
+  { category:"org",           name:"contoso/groups",                      count:38,   sha256:"b2c3d4e5f6071112b2c3d4e5f6071112b2c3d4e5f6071112b2c3d4e5f6071112", timestamp:"2026-04-10T02:00:18Z" },
+  { category:"projects",      name:"Phoenix/metadata",                    count:1,    sha256:"c3d4e5f607082223c3d4e5f607082223c3d4e5f607082223c3d4e5f607082223", timestamp:"2026-04-10T02:00:45Z" },
+  { category:"git",           name:"Phoenix/repos",                       count:12,   sha256:"d4e5f60708093334d4e5f60708093334d4e5f60708093334d4e5f60708093334", timestamp:"2026-04-10T02:01:02Z" },
+  { category:"git",           name:"Phoenix/api-service_branches",        count:6,    sha256:"e5f6070809104445e5f6070809104445e5f6070809104445e5f6070809104445", timestamp:"2026-04-10T02:01:34Z" },
+  { category:"boards",        name:"Phoenix/work_items",                  count:1284, sha256:"f607080910115556f607080910115556f607080910115556f607080910115556", timestamp:"2026-04-10T02:03:21Z" },
+  { category:"pipelines",     name:"Phoenix/pipelines",                   count:24,   sha256:"0708091011126667070809101112666707080910111266670708091011126667", timestamp:"2026-04-10T02:05:10Z" },
+  { category:"pull_requests", name:"Phoenix/api-service/pull_requests",   count:87,   sha256:"0809101112137778080910111213777808091011121377780809101112137778", timestamp:"2026-04-10T02:05:55Z" },
+  { category:"artifacts",     name:"Phoenix/feed-nuget/packages",         count:341,  sha256:"0910111213148889091011121314888909101112131488890910111213148889", timestamp:"2026-04-10T02:06:20Z" },
+  { category:"dashboards",    name:"Phoenix/dashboards",                  count:3,    sha256:"1011121314159990101112131415999010111213141599901011121314159990", timestamp:"2026-04-10T02:07:01Z" },
+  { category:"wikis",         name:"Phoenix/platform.wiki/pages",         count:58,   sha256:"1112131415160000111213141516000011121314151600001112131415160000", timestamp:"2026-04-10T02:07:30Z" },
+  { category:"testplans",     name:"Phoenix/test_plans",                  count:9,    sha256:"1213141516171111121314151617111112131415161711111213141516171111", timestamp:"2026-04-10T02:07:58Z" },
+  { category:"projects",      name:"Platform/metadata",                   count:1,    sha256:"1314151617182222131415161718222213141516171822221314151617182222", timestamp:"2026-04-10T02:08:05Z" },
+  { category:"git",           name:"Platform/repos",                      count:4,    sha256:"1415161718193333141516171819333314151617181933331415161718193333", timestamp:"2026-04-10T02:08:15Z" },
+  { category:"boards",        name:"Platform/work_items",                 count:426,  sha256:"1516171819204444151617181920444415161718192044441516171819204444", timestamp:"2026-04-10T02:08:28Z" }
+];
+
+var DEMO_VERIFICATION = {
+  verified_at: "2026-04-10T02:08:40Z",
+  org_url: "https://dev.azure.com/contoso",
+  samples_per_category: 3,
+  summary: { total:18, passed:16, failed:1, skipped:1, errors:0 },
+  results: [
+    { category:"git",           project:"Phoenix",  item:"git/api-service",       status:"pass",  check:"head_sha_match",      note:"HEAD SHA matches" },
+    { category:"git",           project:"Phoenix",  item:"git/web-frontend",      status:"pass",  check:"head_sha_match",      note:"HEAD SHA matches" },
+    { category:"git",           project:"Platform", item:"git/infra-tf",          status:"pass",  check:"head_sha_match",      note:"HEAD SHA matches" },
+    { category:"boards",        project:"Phoenix",  item:"boards/work_item/4201", status:"pass",  check:"revision_match",      note:"System.Rev matches" },
+    { category:"boards",        project:"Phoenix",  item:"boards/work_item/3987", status:"skip",  check:"revision_match",      note:"Modified after backup started" },
+    { category:"boards",        project:"Platform", item:"boards/work_item/812",  status:"pass",  check:"revision_match",      note:"System.Rev matches" },
+    { category:"pipelines",     project:"Phoenix",  item:"pipelines/build-api",   status:"pass",  check:"revision_match",      note:"Pipeline revision matches" },
+    { category:"pipelines",     project:"Phoenix",  item:"pipelines/deploy-prod", status:"pass",  check:"revision_match",      note:"Pipeline revision matches" },
+    { category:"pipelines",     project:"Platform", item:"pipelines/infra-plan",  status:"pass",  check:"revision_match",      note:"Pipeline revision matches" },
+    { category:"pull_requests", project:"Phoenix",  item:"pull_requests/pr/142",  status:"pass",  check:"status_match",        note:"PR status matches" },
+    { category:"pull_requests", project:"Phoenix",  item:"pull_requests/pr/139",  status:"pass",  check:"status_match",        note:"PR status matches" },
+    { category:"pull_requests", project:"Platform", item:"pull_requests/pr/31",   status:"pass",  check:"status_match",        note:"PR status matches" },
+    { category:"wikis",         project:"Phoenix",  item:"wikis/platform.wiki",   status:"pass",  check:"pages_non_empty",     note:"58 pages found" },
+    { category:"artifacts",     project:"Phoenix",  item:"artifacts/feed-nuget",  status:"fail",  check:"package_count_match", note:"Backed up 341, live has 344 (3 published after backup)" },
+    { category:"artifacts",     project:"Phoenix",  item:"artifacts/feed-npm",    status:"pass",  check:"package_count_match", note:"Package count matches" },
+    { category:"testplans",     project:"Phoenix",  item:"testplans/plan/7",      status:"pass",  check:"plan_exists",         note:"Test plan found" },
+    { category:"testplans",     project:"Phoenix",  item:"testplans/plan/8",      status:"pass",  check:"plan_exists",         note:"Test plan found" },
+    { category:"testplans",     project:"Platform", item:"testplans/plan/2",      status:"pass",  check:"plan_exists",         note:"Test plan found" }
+  ]
+};
+
+// ─── Stub fetch with demo data ─────────────────────────────────────────────
+window.fetch = function(path) {
+  return new Promise(function(resolve) {
+    setTimeout(function() {
+      var data = null;
+      var m;
+      if (path === "/api/backups") {
+        data = DEMO_BACKUPS;
+      } else if ((m = path.match(/^\/api\/backups\/(.+)\/manifest$/))) {
+        data = DEMO_MANIFESTS[decodeURIComponent(m[1])] || null;
+      } else if ((m = path.match(/^\/api\/backups\/(.+)\/errors$/))) {
+        data = DEMO_ERRORS[decodeURIComponent(m[1])] || [];
+      } else if ((m = path.match(/^\/api\/backups\/(.+)\/inventory$/))) {
+        data = DEMO_INVENTORY;
+      } else if ((m = path.match(/^\/api\/backups\/(.+)\/verification$/))) {
+        data = DEMO_VERIFICATION;
+      }
+      resolve({ ok: data !== null, json: function() { return Promise.resolve(data); } });
+    }, 60);
+  });
+};
+</script>
+
+<script>
+// ─── App logic (inlined from app.js) ──────────────────────────────────────
+(function () {
+  "use strict";
+
+  var state = { backups: [], selectedId: null };
+
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.appendChild(document.createTextNode(String(str)));
+    return div.innerHTML;
+  }
+
+  function fmtTimestamp(iso) {
+    if (!iso) return "-";
+    try {
+      return new Date(iso).toLocaleString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+    } catch(e) { return iso; }
+  }
+
+  function fmtDuration(seconds) {
+    if (!seconds && seconds !== 0) return "-";
+    var s = Math.round(seconds);
+    if (s < 60) return s + "s";
+    return Math.floor(s/60) + "m " + (s%60) + "s";
+  }
+
+  function fmtRunTimestamp(ts) {
+    if (!ts || ts.length < 15) return ts;
+    return ts.slice(0,4)+"-"+ts.slice(4,6)+"-"+ts.slice(6,8)+" "+ts.slice(9,11)+":"+ts.slice(11,13)+" UTC";
+  }
+
+  function api(path) {
+    return fetch(path).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+  }
+
+  function statusPill(status) {
+    return '<span class="status-pill status-'+(status||"skip")+'">'+escapeHtml(status||"–")+"</span>";
+  }
+
+  // Sidebar
+  function loadBackups() {
+    api("/api/backups").then(function(data) {
+      if (!data) { document.getElementById("backup-list").innerHTML='<div class="list-loading">Failed to load.</div>'; return; }
+      state.backups = data.backups || [];
+      renderBackupList();
+    });
+  }
+
+  function renderBackupList() {
+    var c = document.getElementById("backup-list");
+    if (!state.backups.length) { c.innerHTML='<div class="list-loading">No backups found.</div>'; return; }
+    c.innerHTML = "";
+    state.backups.forEach(function(b) {
+      var div = document.createElement("div");
+      div.className = "backup-item"+(b.id===state.selectedId?" selected":"");
+      div.setAttribute("role","button"); div.setAttribute("tabindex","0");
+      var dot = b.total_errors===0?"dot-ok":"dot-warn";
+      var badge = b.total_errors===0
+        ? '<span class="badge badge-ok">0 errors</span>'
+        : '<span class="badge badge-warn">'+b.total_errors+' error'+(b.total_errors!==1?"s":"")+"</span>";
+      div.innerHTML =
+        '<div class="run-title"><span class="run-status-dot '+dot+'"></span>'+escapeHtml(fmtRunTimestamp(b.timestamp))+"</div>"+
+        '<div class="run-meta"><span class="run-org">'+escapeHtml(b.org)+"</span> &middot; "+b.total_entities.toLocaleString()+" entities &middot; "+badge+"</div>";
+      div.addEventListener("click", function() { selectBackup(b.id, b); });
+      div.addEventListener("keydown", function(e) { if(e.key==="Enter"||e.key===" ") selectBackup(b.id,b); });
+      c.appendChild(div);
+    });
+  }
+
+  function selectBackup(id, b) {
+    state.selectedId = id;
+    renderBackupList();
+    var backup = b || state.backups.find(function(x){return x.id===id;})||{};
+    document.getElementById("content-title").textContent = fmtRunTimestamp(backup.timestamp||"");
+    document.getElementById("content-title").className = "";
+    var sub = document.getElementById("content-subtitle");
+    sub.textContent = backup.org+" · "+backup.host;
+    sub.hidden = false;
+    loadSummary(id);
+    switchTab("summary");
+  }
+
+  // Tabs
+  function switchTab(name) {
+    document.querySelectorAll(".pivot-item").forEach(function(b){ b.classList.toggle("active",b.dataset.tab===name); });
+    document.querySelectorAll(".tab-panel").forEach(function(p){ var a=p.id==="tab-"+name; p.classList.toggle("active",a); p.hidden=!a; });
+    if (!state.selectedId) return;
+    if (name==="errors")       loadErrors(state.selectedId);
+    if (name==="inventory")    loadInventory(state.selectedId);
+    if (name==="verification") loadVerification(state.selectedId);
+  }
+  document.querySelectorAll(".pivot-item").forEach(function(b){ b.addEventListener("click",function(){ switchTab(b.dataset.tab); }); });
+
+  // Summary
+  function loadSummary(id) {
+    document.getElementById("empty-prompt").style.display="none";
+    var content = document.getElementById("summary-content");
+    content.hidden = false;
+    var strip = document.getElementById("stat-strip");
+    var limSec = document.getElementById("limits-section");
+    strip.innerHTML="<p style='color:var(--text-secondary)'>Loading&hellip;</p>";
+    limSec.hidden=true;
+
+    api("/api/backups/"+encodeURIComponent(id)+"/manifest").then(function(m) {
+      if (!m) { strip.innerHTML="<p style='color:var(--red-fg)'>Failed to load manifest.</p>"; return; }
+      var err = m.total_errors||0;
+      var stats = [
+        {label:"Started",   value:fmtTimestamp(m.started_at)},
+        {label:"Completed", value:fmtTimestamp(m.completed_at)},
+        {label:"Duration",  value:fmtDuration(m.duration_seconds)},
+        {label:"Entities",  value:(m.total_entities||0).toLocaleString()},
+        {label:"Errors",    value:err.toLocaleString(), valueClass:err===0?"value-ok":"value-error"},
+        {label:"Version",   value:m.version||"-"}
+      ];
+      strip.innerHTML = stats.map(function(s){
+        return '<div class="stat-card"><div class="stat-label">'+escapeHtml(s.label)+'</div><div class="stat-value '+(s.valueClass||"")+'">'+escapeHtml(String(s.value))+"</div></div>";
+      }).join("");
+
+      var lim = m.limits_applied||{}, chips=[];
+      if (lim.max_items) chips.push({label:"Max items",value:lim.max_items});
+      if (lim.since)     chips.push({label:"Since",    value:lim.since});
+      if (lim.components&&lim.components.length) chips.push({label:"Components",value:lim.components.join(", ")});
+      if (chips.length) {
+        limSec.hidden=false;
+        document.getElementById("limits-content").innerHTML=chips.map(function(c){
+          return '<span class="limit-chip"><strong>'+escapeHtml(c.label)+":</strong> "+escapeHtml(String(c.value))+"</span>";
+        }).join("");
+      }
+
+      var badge = document.getElementById("errors-badge");
+      if (err>0) { badge.textContent=err>99?"99+":err; badge.hidden=false; } else { badge.hidden=true; }
+    });
+  }
+
+  // Errors
+  function loadErrors(id) {
+    var tbody=document.querySelector("#errors-table tbody"), lbl=document.getElementById("errors-count-label");
+    tbody.innerHTML="<tr><td colspan='4' style='color:var(--text-secondary)'>Loading&hellip;</td></tr>"; lbl.textContent="";
+    api("/api/backups/"+encodeURIComponent(id)+"/errors").then(function(errors) {
+      if (!errors||!errors.length) { tbody.innerHTML="<tr><td colspan='4' style='color:var(--text-secondary)'>No errors recorded.</td></tr>"; return; }
+      lbl.textContent=errors.length+" error"+(errors.length!==1?"s":"");
+      tbody.innerHTML="";
+      errors.forEach(function(e){
+        var tr=document.createElement("tr");
+        tr.innerHTML="<td>"+escapeHtml(e.category||"")+"</td><td class='cell-secondary'>"+escapeHtml(e.name||"")+"</td><td class='cell-error'>"+escapeHtml(e.error||"")+"</td><td class='cell-secondary'>"+escapeHtml(fmtTimestamp(e.timestamp))+"</td>";
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  // Inventory
+  var _inv=[];
+  function loadInventory(id) {
+    var tbody=document.querySelector("#inventory-table tbody"), lbl=document.getElementById("inventory-count-label");
+    tbody.innerHTML="<tr><td colspan='5' style='color:var(--text-secondary)'>Loading&hellip;</td></tr>"; lbl.textContent="";
+    api("/api/backups/"+encodeURIComponent(id)+"/inventory").then(function(items){
+      _inv=items||[];
+      var sel=document.getElementById("inventory-filter"), cats={};
+      _inv.forEach(function(i){ if(i.category) cats[i.category]=true; });
+      sel.innerHTML='<option value="">All</option>';
+      Object.keys(cats).sort().forEach(function(cat){ var o=document.createElement("option"); o.value=cat; o.textContent=cat; sel.appendChild(o); });
+      renderInventory(_inv);
+    });
+  }
+  function renderInventory(items) {
+    var tbody=document.querySelector("#inventory-table tbody"), lbl=document.getElementById("inventory-count-label");
+    if (!items.length) { tbody.innerHTML="<tr><td colspan='5' style='color:var(--text-secondary)'>No entries.</td></tr>"; lbl.textContent=""; return; }
+    lbl.textContent=items.length.toLocaleString()+" item"+(items.length!==1?"s":"");
+    tbody.innerHTML="";
+    items.forEach(function(e){
+      var tr=document.createElement("tr");
+      var sha=e.sha256?e.sha256.substring(0,16)+"…":"";
+      tr.innerHTML="<td>"+escapeHtml(e.category||"")+"</td><td>"+escapeHtml(e.name||"")+"</td><td>"+(e.count!=null?e.count.toLocaleString():"")+"</td><td class='cell-mono' title='"+escapeHtml(e.sha256||"")+"'>"+escapeHtml(sha)+"</td><td class='cell-secondary'>"+escapeHtml(fmtTimestamp(e.timestamp))+"</td>";
+      tbody.appendChild(tr);
+    });
+  }
+  document.getElementById("inventory-filter").addEventListener("change",function(){
+    renderInventory(this.value?_inv.filter(function(e){return e.category===this.value;},this):_inv);
+  });
+
+  // Verification
+  function loadVerification(id) {
+    var bar=document.getElementById("verification-summary-bar"),noMsg=document.getElementById("no-verification-msg"),tbody=document.querySelector("#verification-table tbody");
+    bar.hidden=true; noMsg.hidden=true;
+    tbody.innerHTML="<tr><td colspan='6' style='color:var(--text-secondary)'>Loading&hellip;</td></tr>";
+    api("/api/backups/"+encodeURIComponent(id)+"/verification").then(function(report){
+      if (!report) { noMsg.hidden=false; tbody.innerHTML=""; return; }
+      var s=report.summary||{};
+      bar.hidden=false;
+      bar.innerHTML="Verified at: <strong>"+escapeHtml(fmtTimestamp(report.verified_at))+"</strong>&ensp;"+statusPill("pass")+" "+(s.passed||0)+"&ensp;"+statusPill("fail")+" "+(s.failed||0)+"&ensp;"+statusPill("skip")+" "+(s.skipped||0);
+      var results=report.results||[];
+      if (!results.length) { tbody.innerHTML="<tr><td colspan='6' style='color:var(--text-secondary)'>No results.</td></tr>"; return; }
+      tbody.innerHTML="";
+      results.forEach(function(r){
+        var tr=document.createElement("tr");
+        tr.innerHTML="<td>"+escapeHtml(r.category||"")+"</td><td class='cell-secondary'>"+escapeHtml(r.project||"")+"</td><td>"+escapeHtml(r.item||"")+"</td><td>"+statusPill(r.status)+"</td><td class='cell-secondary'>"+escapeHtml(r.check||"")+"</td><td class='cell-secondary'>"+escapeHtml(r.note||"")+"</td>";
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  loadBackups();
+})();
+</script>
+
+</body>
+</html>
