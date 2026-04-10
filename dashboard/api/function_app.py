@@ -1,4 +1,4 @@
-"""ADO Backup Dashboard — Azure Functions v2 HTTP endpoints.
+"""ADO Backup Dashboard - Azure Functions v2 HTTP endpoints.
 
 All endpoints are read-only and only access _indexes/ metadata blobs.
 Raw backup data is not served; admins go to the storage container directly.

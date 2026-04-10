@@ -6,130 +6,27 @@ This project has been generated with the assistance of Anthropic's Claude LLM mo
 Please be aware of this before running it against production systems, and take the time to understand how the project works before using it.
 </td></tr></table>
 
-A non-interactive backup tool for Azure DevOps that uses only Azure CLI (`az devops`) commands and Git CLI to retrieve and persist data. Designed for CI/CD pipelines with zero external Python dependencies.
-
-## Features
-
-- **Broad data coverage** - organisations, projects, repos, pull requests, boards, pipelines, artifacts, dashboards, permissions, wikis, and test plans
-- **Azure CLI only** - all API access via `az devops` / `az devops invoke`; no direct HTTP clients
-- **Git CLI** - repository content cloned via `git clone --mirror`
-- **Standard library only** - no pip dependencies beyond Python >= 3.9
-- **Non-interactive** - designed for CI/CD (Azure Pipelines, GitHub Actions)
-- **Automatic pagination** - continuation token handling built into `az devops invoke` so large result sets are never silently truncated
-- **Incremental filtering** - `--since` flag filters work items and pipeline runs by date
-- **Resilient** - exponential backoff with jitter, throttle-aware retries, partial progress tracking
-- **Redaction** - best effort to scrub sensitive fields (secrets, tokens, passwords, `isSecret` variables) automatically masked before persisting across all backup scopes
-- **Secure credential handling** - PAT passed to git via environment variables (never in process arguments or on-disk config)
-- **Hardened output** - backup directories created with restricted permissions (`0700` on Unix)
-- **Integrity verification** - SHA-256 checksums recorded per file in the inventory; archives verified before source deletion
-- **Input validation** - path traversal protection, config value whitelisting, output directory sanitisation
-- **Configurable** - CLI flags, environment variables, and optional YAML config file
-- **Compression** - per-repo, per-project, or full backup compression with archive verification
-- **Dashboard** - lightweight Azure Function with web UI for reviewing backup history, errors, inventory, and verification results
+A non-interactive **pull-and-store** backup tool for Azure DevOps that uses only Azure CLI (`az devops`) and Git CLI to retrieve and persist data. There is no automated restore functionality - Azure DevOps does not provide programmatic restore APIs. Designed for CI/CD pipelines with zero external Python dependencies.
 
 ## Dashboard Preview
 
 [![Dashboard Screenshot](dashboard/preview.png)](dashboard/preview.png)
 
-## Feature Support
+## Features
 
-The tables below show what Azure DevOps data is backed up, grouped by category.
-
-### Repositories
-
-| Feature | Status | Notes |
-|---|---|---|
-| Mirror clone (full history) | Supported | `git clone --mirror` via Git CLI |
-| Branch refs | Supported | Exported as structured JSON via `git/refs` with `filter=heads/` |
-| Tag refs | Supported | Exported as structured JSON via `git/refs` with `filter=tags/` |
-| Branch policies | Supported | Per-repository filtering via `policy/configurations?repositoryId=` |
-| Repository metadata | Supported | Default branch, size, and other properties from `az repos list` |
-| Repository permissions | Supported | Per-repo ACLs via `security/accesscontrollists` with `repoV2/{projectId}/{repoId}` token |
-
-### Pull Requests
-
-| Feature | Status | Notes |
-|---|---|---|
-| PR metadata (all statuses) | Supported | Title, description, author, timestamps, target branch, reviewers, votes |
-| PR comment threads | Supported | All threads including resolved/active state and comment authors |
-| PR work item links | Supported | Linked work items per PR |
-| PR labels | Supported | Via `git/pullRequestLabels` |
-| PR iteration history | Supported | Via `git/pullRequestIterations` |
-
-### Pipelines
-
-| Feature | Status | Notes |
-|---|---|---|
-| Pipeline definitions (YAML) | Supported | Via `az pipelines list` |
-| Pipeline variables | Supported | Via variable groups export; secrets redacted |
-| Variable groups | Supported | Via `distributedtask/variablegroups`; `isSecret` values redacted |
-| Pipeline environments | Supported | Via `distributedtask/environments` |
-| Secure files | Supported | Metadata only (names, IDs); file contents are never exported |
-| Task groups (classic) | Supported | Via `distributedtask/taskgroups` |
-| Release definitions (classic) | Supported | Via `release/definitions`; may require the release management area to be registered |
-| Service connections | Supported | Names, types, endpoint URLs; credentials redacted via `authorization.parameters` path |
-| Agent pools and queues | Supported | Metadata only |
-| Pipeline run history | Supported | Build index with configurable `--max-items` and `--since` filtering |
-| Pipeline run logs | Supported | Log files downloaded via `az rest` per build run |
-
-### Boards and Work Items
-
-| Feature | Status | Notes |
-|---|---|---|
-| Work items (all fields) | Supported | Fetched via WIQL query then `az boards work-item show --expand all` in batches of 200 |
-| Work item relations | Supported | Included via `--expand all` |
-| Work item history | Supported | Full revision history via `wit/revisions` per work item |
-| Work item attachments | Supported | Binary files downloaded via `az rest` per work item |
-| Saved queries | Supported | Via `wit/queries` with depth 2 |
-| Work item tags | Supported | Via `wit/tags` |
-| Board column/swimlane config | Supported | Board definitions, columns, and rows (swimlanes) per board |
-| Team settings | Supported | Via `work/teamsettings` |
-| Team iterations | Supported | Via `work/iterations` |
-| Iteration paths | Supported | Full hierarchy via `wit/classificationNodes` with depth 10 |
-| Area paths | Supported | Full hierarchy via `wit/classificationNodes` with depth 10 |
-
-### Artifacts
-
-| Feature | Status | Notes |
-|---|---|---|
-| Feed configurations | Supported | Via `packaging/feeds` |
-| Package metadata | Supported | Per-feed package listing; binary content is not downloaded |
-| Feed permissions | Supported | Via `packaging/feedpermissions` per feed |
-| Retention policies | Supported | Via `packaging/retentionpolicies` per feed |
-
-### Access and Identity
-
-| Feature | Status | Notes |
-|---|---|---|
-| Users | Supported | AAD/MSA users via `graph/users` |
-| Groups | Supported | Security groups via `graph/groups` |
-| Group memberships | Supported | Via `graph/memberships` (API v7.1-preview.1) |
-| Security namespaces | Supported | Fetched once (org-wide) and cached to avoid redundant calls |
-| Project-level ACLs | Supported | Via `security/accesscontrollists` per project |
-| Service principal/PAT metadata | Supported | Via `graph/serviceprincipals` and `tokens/pats`; token values redacted |
-
-### Project and Organisation Settings
-
-| Feature | Status | Notes |
-|---|---|---|
-| Project properties and visibility | Supported | Via `az devops project show` |
-| Teams | Supported | Via `core/teams` |
-| Dashboards and widgets | Supported | Dashboard list plus per-dashboard widget configurations |
-| Notification subscriptions | Supported | Via `notification/subscriptions` |
-
-### Wikis
-
-| Feature | Status | Notes |
-|---|---|---|
-| Wiki list | Supported | Via `wiki/wikis` |
-| Wiki page content | Supported | Full page tree with content via `wiki/pages?recursionLevel=full` |
-
-### Test Plans
-
-| Feature | Status | Notes |
-|---|---|---|
-| Test plans | Supported | Via `test/plans` |
-| Test suites | Supported | Per-plan suites via `test/suites` |
+- **Broad data coverage** - organisations, projects, repos, pull requests, boards, pipelines, artifacts, dashboards, permissions, wikis, and test plans
+- **Azure CLI only** - all API access via `az devops` / `az devops invoke`; no direct HTTP clients
+- **Standard library only** - no pip dependencies beyond Python >= 3.9
+- **Non-interactive** - designed for CI/CD (Azure Pipelines, GitHub Actions)
+- **Automatic pagination** - continuation token handling so large result sets are never silently truncated
+- **Incremental filtering** - `--since` flag filters work items and pipeline runs by date
+- **Resilient** - exponential backoff with jitter, throttle-aware retries, partial progress tracking
+- **Redaction** - sensitive fields (secrets, tokens, passwords, `isSecret` variables) automatically masked before persisting
+- **Secure credential handling** - PAT passed to git via environment variables (never in process arguments or on-disk config)
+- **Hardened output** - backup directories created with restricted permissions (`0700` on Unix)
+- **Integrity verification** - SHA-256 checksums per file; archives verified before source deletion
+- **Compression** - per-repo, per-project, or full backup compression
+- **Dashboard** - lightweight Azure Function with web UI for reviewing backup history, errors, and verification results
 
 ## Prerequisites
 
@@ -140,367 +37,37 @@ The tables below show what Azure DevOps data is backed up, grouped by category.
 | Azure DevOps CLI extension | Auto-installed if missing |
 | Git | Any recent version |
 
-### Authentication
-
-The tool uses Azure CLI authentication. There are two ways to provide credentials:
-
-1. **Pipeline Identity (recommended)** — use the built-in Build Service account in Azure DevOps Pipelines.
-2. **Personal Access Token (PAT)** — for local use, non-ADO CI systems, or when pipeline identity permissions cannot be configured.
-
-When a token (system or PAT) is provided via `AZURE_DEVOPS_EXT_PAT` or `SYSTEM_ACCESSTOKEN`, it is also used for `git clone --mirror` authentication via git config environment variables. The token never appears in process arguments or on-disk git config files. If no token is set, the tool relies on whatever authentication the `az` CLI already has configured.
-
-#### Pipeline Identity (Recommended)
-
-When running as an Azure DevOps Pipeline, the pipeline already has an identity: the **Build Service** account. Using `$(System.AccessToken)` (see [`examples/azure-pipelines.yml`](examples/azure-pipelines.yml)) feeds this token through the `AZURE_DEVOPS_EXT_PAT` environment variable. No PAT creation or manual rotation is needed.
-
-**Why this is preferred over a PAT:**
-
-- Tokens are automatically rotated every pipeline run (24-hour lifetime).
-- Token scope is limited to the pipeline's execution context.
-- No shared secrets to create, store, or rotate.
-- Eliminates risk of PAT leakage or expiry-related backup failures.
-- Audit trail ties every API call to a specific pipeline run in Azure DevOps.
-
-**Setup steps:**
-
-1. **Enable OAuth token access.** In your pipeline YAML, the system token is available by default. In classic pipelines, check *Allow scripts to access the OAuth token* on the Agent Job options.
-
-2. **Expand job authorisation scope (cross-project backups).** By default, the build service identity can only access the project that contains the pipeline. To back up other projects:
-   - Go to **Organisation Settings → Pipelines → Settings**.
-   - Set *Limit job authorization scope to current project for non-release pipelines* to **Off**.
-   - Set *Limit job authorization scope to referenced Azure DevOps repositories* to **Off** (required for cloning repos in other projects).
-
-   > **Targeted alternative:** If you only back up specific projects, keep these limits **On** and instead grant the build service identity access per-project (step 3).
-
-3. **Grant the Build Service identity Reader access.** For each project being backed up, go to **Project Settings → Permissions** and add the build service account to the **Readers** group. There are two identities to consider:
-   - `{Project Name} Build Service ({Org Name})` — project-scoped identity (used when the pipeline is in the same project).
-   - `Project Collection Build Service ({Org Name})` — collection-scoped identity (broader, used when job scope limits are disabled).
-
-   Add whichever identity your pipeline uses to the Readers group.
-
-4. **Grant feed access for Artifacts.** If backing up Artifacts, go to **Artifacts → Feed Settings → Permissions** and add the Build Service identity as a **Reader** for each feed.
-
-5. **Wire the token in YAML.** The `env:` block in your pipeline passes the system token:
-   ```yaml
-   env:
-     AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
-     AZURE_DEVOPS_ORG_URL: $(System.CollectionUri)
-   ```
-
-**Permissions required by backup component:**
-
-| Component | ADO Permission | Where to set |
-|-----------|---------------|--------------|
-| `projects` | View project-level information | Project Settings → Permissions (Readers group) |
-| `git` | Read (repositories) | Project Settings → Repositories → Security |
-| `boards` | View work items | Project Settings → Permissions (Readers group) |
-| `pipelines` | View builds, View build definitions | Project Settings → Pipelines → Security |
-| `pull_requests` | Read (repositories) | Project Settings → Repositories → Security |
-| `artifacts` | Read (feed) | Artifacts → Feed Settings → Permissions |
-| `permissions` | View identity information | Organisation Settings → Permissions |
-| `dashboards` | Read (dashboards) | Project Settings → Permissions (Readers group) |
-| `wikis` | Read (wiki) | Project Settings → Permissions (Readers group) |
-| `testplans` | View test runs | Project Settings → Permissions (Readers group) |
-| `org` | View instance-level information | Organisation Settings → Permissions |
-
-> **Tip:** The Readers group in most projects already grants the majority of these permissions. You typically only need to explicitly grant feed access (Artifacts) and verify repository-level read permissions.
-
-#### PAT Scopes (if using a PAT)
-
-| Scope | Access |
-|---|---|
-| Project and Team | Read |
-| Code | Read |
-| Work Items | Read |
-| Build | Read |
-| Release | Read |
-| Packaging | Read |
-| Graph (Users/Groups) | Read |
-| Security (Permissions) | Read |
-| Service Connections | Read |
-| Variable Groups | Read |
-| Agent Pools | Read |
-| Dashboard | Read |
-| Notifications | Read |
-
 ## Quick Start
 
 ```bash
-# Set required environment variables
 export AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-org"
+export AZURE_DEVOPS_EXT_PAT="your-personal-access-token"  # optional
 
-# Optional: provide a PAT (otherwise relies on az CLI auth)
-export AZURE_DEVOPS_EXT_PAT="your-personal-access-token"
-
-# Run the backup
-export PYTHONPATH=src
-python src/cli.py
-
-# Or with options
-python src/cli.py \
-  --projects "Project1,Project2" \
-  --output-dir ./my-backup \
-  --max-items 100 \
-  --verbose
+PYTHONPATH=src python src/cli.py
 ```
 
-## CLI Options
+## Documentation
 
-| Flag | Default | Description |
-|---|---|---|
-| `--org-url` | `$AZURE_DEVOPS_ORG_URL` | Azure DevOps organisation URL |
-| `--projects` | `all` | Comma-separated project names or `all` |
-| `--include` | all components | Comma-separated: `org,projects,git,boards,pipelines,permissions,pull_requests,artifacts,dashboards,wikis,testplans` |
-| `--exclude` | none | Components to skip |
-| `--since` | none | ISO timestamp for incremental filtering (applies to work items and pipeline runs) |
-| `--max-items` | `0` (unlimited) | Per-entity item limit |
-| `--compress` | none | Compress output: `repos`, `project`, or `all` |
-| `--output-dir` | `ado-backup` | Root output directory |
-| `--config` | none | Path to YAML configuration file |
-| `--fail-fast` | `false` | Abort on first error |
-| `--dry-run` | `false` | Preview without writing data |
-| `--verbose` | `false` | Enable debug logging |
-| `--verify` | `false` | After backup, verify a random sample of items against the live ADO instance |
-| `--verify-samples` | `3` | Number of items to sample per category during verification |
+Full documentation is at **[christopher-talke.github.io/azure-devops-backup-utility](https://christopher-talke.github.io/azure-devops-backup-utility/)**:
 
-## Environment Variables
-
-| Variable | Purpose |
-|---|---|
-| `AZURE_DEVOPS_EXT_PAT` | Personal Access Token (optional; used by az CLI and git clone) |
-| `SYSTEM_ACCESSTOKEN` | Azure Pipelines system token (auto-detected as PAT fallback) |
-| `AZURE_DEVOPS_ORG_URL` | Organisation URL (required) |
-| `ADO_BACKUP_OUTPUT_DIR` | Override default output directory |
-| `ADO_BACKUP_TIMEOUT` | CLI command timeout in seconds (default: 120) |
-
-## YAML Configuration
-
-Create a `config.yaml` (see [`examples/config.yaml`](examples/config.yaml)):
-
-```yaml
-org-url: https://dev.azure.com/myorg
-projects: all
-include: org,projects,git,boards,pipelines,pull_requests,artifacts,dashboards
-max-items: 500
-compress: repos
-output-dir: ./backup
-verbose: false
-```
-
-Then run:
-
-```bash
-python src/cli.py --config config.yaml
-```
-
-Unknown YAML keys are logged as warnings and ignored. The `pat` key is accepted but discouraged - use the `AZURE_DEVOPS_EXT_PAT` environment variable instead.
-
-## Output Structure
-
-```
-ado-backup/
-  {host}/{org-name}/{YYYYMMDDTHHMMSSZ}/
-    org/
-      users.json
-      groups.json
-      memberships.json
-      service_connections.json
-      variable_groups.json
-      agent_pools.json
-      queues.json
-      permissions_acl.json
-      security_namespaces.json
-      service_principals.json
-      pat_tokens.json
-    projects/
-      {project-name}/
-        metadata/
-          project.json
-          teams.json
-          areas.json
-          iterations.json
-          permissions_acl.json
-        git/
-          repos.json
-          {repo-name}_branches.json
-          {repo-name}_tags.json
-          {repo-name}_policies.json
-          {repo-name}_permissions.json
-          {repo-name}/                  # mirror clone
-        pull_requests/
-          {repo-name}/
-            pull_requests.json
-            {pr-id}/
-              threads.json
-              work_items.json
-              labels.json
-              iterations.json
-        boards/
-          work_items/
-            index.json
-            {id}.json
-            {id}_revisions.json
-            {id}/
-              attachments/                # binary files
-          queries.json
-          tags.json
-          board_config.json
-          board_{name}_columns.json
-          board_{name}_rows.json
-          team_settings.json
-          team_iterations.json
-        pipelines/
-          pipelines.json
-          runs_index.json
-          environments.json
-          secure_files.json
-          task_groups.json
-          release_definitions.json
-          logs/
-            {build-id}/
-              {log-id}.txt
-        artifacts/
-          feeds.json
-          feed_{name}_packages.json
-          feed_{name}_permissions.json
-          feed_{name}_retention.json
-        dashboards/
-          dashboards.json
-          dashboard_{name}_widgets.json
-          notification_subscriptions.json
-        wikis/
-          wikis.json
-          wiki_{name}_pages.json
-        test_plans/
-          plans.json
-          plan_{name}_suites.json
-    _indexes/
-      inventory.json          # all exported entities with SHA-256 checksums
-      manifest.json           # backup metadata (timing, counts, limits)
-      errors.jsonl            # any errors encountered (PATs scrubbed)
-```
-
-## Security and Redaction
-
-All backup scopes pass API data through the redaction engine before writing to disk.
-
-### Credential Handling
-
-- The PAT is **never** logged, persisted to disk, or passed in process arguments
-- Git clone authentication uses `GIT_CONFIG_COUNT` / `GIT_CONFIG_KEY` / `GIT_CONFIG_VALUE` environment variables with Base64-encoded Basic auth - the PAT never appears in `argv` or on-disk git config
-- Error messages written to `errors.jsonl` are scrubbed of PAT values before persisting (both at the orchestrator level and within each scope module)
-
-### Field Redaction
-
-Fields matching the following names (case-insensitive) are replaced with `***REDACTED***`:
-
-`password`, `secret`, `token`, `privatekey`, `private_key`, `certificate`, `apikey`, `api_key`, `accesstoken`, `access_token`, `connectionstring`, `connection_string`, `securefileid`, `client_secret`, `clientsecret`, `sas_token`, `sastoken`, `encrypted_value`, `encryptedvalue`, `credentials`, `subscription_key`, `subscriptionkey`
-
-### Path Redaction
-
-The following dot-separated JSON paths are always redacted:
-
-- `authorization.parameters`
-- `configuration.value`
-- `data.accesstoken`
-
-### Contextual Redaction
-
-Objects containing `"isSecret": true` (or `issecret`, `is_secret`) have their `value` field redacted automatically. This catches Azure DevOps variable group secrets where the key name is generic.
-
-### Output Hardening
-
-- Backup directories are created with `0700` permissions on Unix systems
-- File names derived from API data are sanitised to prevent path traversal (`..` is stripped)
-- The `output_dir` config value is validated to reject `..` path components
-- Compression operations verify the archive is readable before deleting the source directory
-
-## Integrity and Verification
-
-- Each file recorded in `inventory.json` includes a `sha256` checksum computed at write time
-- The `manifest.json` records timing, entity counts, error counts, and any limits applied
-- Archives are verified (member listing read back) before the uncompressed source is removed
-- Errors are tracked in `errors.jsonl` with timestamps and PAT scrubbing
-
-### Live Verification (`--verify`)
-
-When `--verify` is passed, the tool samples `--verify-samples` items (default 3) per category per project after backup completes and compares them against the live ADO instance:
-
-| Category | Check |
-|----------|-------|
-| git | HEAD SHA of default branch matches live |
-| boards | `System.Rev` matches live work item |
-| pipelines | `revision` field matches live build definition |
-| pull_requests | `status` field matches live PR |
-| wikis | Pages file is non-empty |
-| artifacts | Package count matches live feed |
-| dashboards | Dashboard ID exists in live instance |
-| testplans | Test plan ID exists in live instance |
-
-Items modified after the backup started are skipped. Results are written to `_indexes/verification_report.json`. Exit code is `2` on any verification failure.
-
-## Pagination
-
-All `az devops invoke` API calls automatically handle continuation tokens. If a response includes a `continuationToken`, subsequent pages are fetched and merged into a single result set (up to 100 pages by default). This prevents silent data truncation for large organisations with many users, repositories, work items, or other entities.
-
-## Incremental Filtering
-
-When `--since` is provided with an ISO timestamp:
-
-- **Work items**: the WIQL query filters by `[System.ChangedDate] >= '{since}'`
-- **Pipeline runs**: the build index query uses the `minTime` parameter
-
-Other entity types are always fetched in full regardless of the `--since` value.
-
-## Performance and Throttling
-
-- All API calls use exponential backoff with jitter (default: 5 retries)
-- HTTP 429 and 5xx errors trigger automatic retry with increasing delay
-- Use `--max-items` to cap per-entity exports for CI-friendly runs
-- Large organisations: consider backing up subsets of projects with `--projects`
-
-## Storage Footprint
-
-- JSON exports are typically small (KB to MB per entity)
-- Git mirror clones can be large depending on repository size
-- Use `--exclude git` to skip repository cloning if storage is limited
-- Use `--compress repos` to tar.gz each mirror clone, `--compress project` for per-project archives, or `--compress all` for a single archive
-- Recommended: set artefact retention policies in your CI system
+- [Installation & Prerequisites](https://christopher-talke.github.io/azure-devops-backup-utility/guide/installation)
+- [Authentication (Pipeline Identity + PAT)](https://christopher-talke.github.io/azure-devops-backup-utility/guide/authentication)
+- [Configuration (CLI flags, env vars, YAML)](https://christopher-talke.github.io/azure-devops-backup-utility/guide/configuration)
+- [Output Structure](https://christopher-talke.github.io/azure-devops-backup-utility/guide/output-structure)
+- [CI/CD Examples](https://christopher-talke.github.io/azure-devops-backup-utility/guide/ci-cd)
+- [Backup Components](https://christopher-talke.github.io/azure-devops-backup-utility/reference/components)
+- [Security & Redaction](https://christopher-talke.github.io/azure-devops-backup-utility/reference/security)
+- [Integrity & Verification](https://christopher-talke.github.io/azure-devops-backup-utility/reference/verification)
+- [Observability Dashboard](https://christopher-talke.github.io/azure-devops-backup-utility/dashboard/)
 
 ## CI/CD Examples
 
-Ready-to-use pipeline definitions are in the [`examples/`](examples/) folder:
-
-| File | Platform | Upload Target |
-|---|---|---|
-| [`azure-pipelines.yml`](examples/azure-pipelines.yml) | Azure DevOps | Build artefacts |
-| [`azure-pipelines-blob-storage.yml`](examples/azure-pipelines-blob-storage.yml) | Azure DevOps | Azure Blob Storage |
-| [`github-actions-backup.yml`](examples/github-actions-backup.yml) | GitHub Actions | Workflow artefacts |
-| [`github-actions-blob-storage.yml`](examples/github-actions-blob-storage.yml) | GitHub Actions | Azure Blob Storage |
-| [`github-actions-s3.yml`](examples/github-actions-s3.yml) | GitHub Actions | AWS S3 |
-| [`config.yaml`](examples/config.yaml) | n/a | Example YAML config |
-
-Copy the relevant file into your project and adjust variables/secrets as described in the file comments.
-
-GitHub Actions examples pin actions to commit SHAs for supply chain security. Azure Pipelines examples use schedule-only triggers (no push triggers) to prevent compromised commits from triggering backup runs.
-
-## Observability Dashboard
-
-A lightweight Azure Function with a web UI is included in the [`dashboard/`](dashboard/) directory. It reads the `_indexes/` metadata files from Azure Blob Storage and lets administrators quickly review:
-
-- **Backup history** — list of all runs with entity counts and error counts
-- **Errors** — per-run error table (category, name, message, timestamp)
-- **Inventory** — searchable list of backed-up entities with SHA-256 checksums
-- **Verification results** — pass/fail/skip status for sampled items (when `--verify` was used)
-
-The dashboard is read-only and informational only — it does not serve raw backup data. See [`dashboard/README.md`](dashboard/README.md) for setup and deployment instructions.
-
-The `azure-pipelines-blob-storage.yml` example pipeline automatically uploads `_indexes/` metadata as raw blobs alongside the compressed archive, so the dashboard can read them without decompression.
+Ready-to-use pipeline definitions are in the [`examples/`](examples/) folder for Azure Pipelines and GitHub Actions, with upload targets for build artifacts, Azure Blob Storage, and AWS S3.
 
 ## Contributing
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for development setup, project structure, testing, and contribution guidelines.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for development setup, architecture, testing, and contribution guidelines.
 
 ## Licence
 
-MIT - See [LICENCE](LICENSE).
+MIT - See [LICENSE](LICENSE).

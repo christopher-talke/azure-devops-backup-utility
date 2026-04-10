@@ -293,7 +293,7 @@ def _verify_git(
             continue
 
         status = _PASS if local_sha == live_sha else _FAIL
-        note = "HEAD SHA matches" if status == _PASS else "HEAD SHA differs — repo may have new commits since backup"
+        note = "HEAD SHA matches" if status == _PASS else "HEAD SHA differs - repo may have new commits since backup"
         results.append(VerificationResult(
             category="git", project=project, item=item_label,
             status=status, check="head_sha_match",
@@ -374,7 +374,7 @@ def _verify_work_items(
             continue
 
         status = _PASS if backed_rev == live_rev else _FAIL
-        note = "System.Rev matches" if status == _PASS else "System.Rev differs — work item was updated after backup"
+        note = "System.Rev matches" if status == _PASS else "System.Rev differs - work item was updated after backup"
         results.append(VerificationResult(
             category="boards", project=project, item=item_label,
             status=status, check="work_item_revision",
@@ -432,7 +432,7 @@ def _verify_pipelines(
             continue
 
         status = _PASS if backed_rev == live_rev else _FAIL
-        note = "revision matches" if status == _PASS else "revision differs — pipeline was updated after backup"
+        note = "revision matches" if status == _PASS else "revision differs - pipeline was updated after backup"
         results.append(VerificationResult(
             category="pipelines", project=project, item=item_label,
             status=status, check="pipeline_revision",
@@ -630,7 +630,7 @@ def _verify_artifacts(
             continue
 
         status = _PASS if backed_count == live_count else _FAIL
-        note = "package count matches" if status == _PASS else f"package count differs — packages may have been added/removed since backup"
+        note = "package count matches" if status == _PASS else f"package count differs - packages may have been added/removed since backup"
         results.append(VerificationResult(
             category="artifacts", project=project, item=item_label,
             status=status, check="packages_count",

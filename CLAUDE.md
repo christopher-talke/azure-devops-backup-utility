@@ -1,4 +1,4 @@
-# CLAUDE.md — Azure DevOps Backup Utility
+# CLAUDE.md - Azure DevOps Backup Utility
 
 ## Project overview
 
@@ -65,10 +65,10 @@ CLI args override env vars, which override YAML file values, which override defa
 
 | Setting | CLI flag | Environment variable | Default |
 |---------|----------|----------------------|---------|
-| Org URL | `--org-url` | `AZURE_DEVOPS_ORG_URL` | — (required) |
-| PAT | — | `AZURE_DEVOPS_EXT_PAT` or `SYSTEM_ACCESSTOKEN` | — (uses az login) |
+| Org URL | `--org-url` | `AZURE_DEVOPS_ORG_URL` | - (required) |
+| PAT | - | `AZURE_DEVOPS_EXT_PAT` or `SYSTEM_ACCESSTOKEN` | - (uses az login) |
 | Output dir | `--output-dir` | `ADO_BACKUP_OUTPUT_DIR` | `ado-backup` |
-| Timeout (s) | — | `ADO_BACKUP_TIMEOUT` | `120` |
+| Timeout (s) | - | `ADO_BACKUP_TIMEOUT` | `120` |
 
 ## Output directory structure
 
@@ -163,7 +163,7 @@ to `_indexes/verification_report.json`. Exit code is `2` on any failure.
 2. Import and call it in `orchestrator.py` inside the per-project loop.
 3. Add the component name string to `ALL_COMPONENTS` in `config.py`.
 4. Add it to the `--include`/`--exclude` help text in `cli.py`.
-5. Write unit tests in `tests/test_scopes_{name}.py` — mock `azcli.az` / `azcli.invoke` and `writers.write_json`.
+5. Write unit tests in `tests/test_scopes_{name}.py` - mock `azcli.az` / `azcli.invoke` and `writers.write_json`.
 
 ## Testing conventions
 

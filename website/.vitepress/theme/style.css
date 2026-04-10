@@ -1,0 +1,83 @@
+/* Azure DevOps blue palette */
+:root {
+  --vp-c-brand-1: #0078d4;
+  --vp-c-brand-2: #106ebe;
+  --vp-c-brand-3: #005a9e;
+  --vp-c-brand-soft: rgba(0, 120, 212, 0.14);
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+}
+
+.dark {
+  --vp-c-brand-1: #4da6ff;
+  --vp-c-brand-2: #3b9aff;
+  --vp-c-brand-3: #2d8cf0;
+  --vp-c-brand-soft: rgba(77, 166, 255, 0.14);
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+}
+
+/* Hero tweaks */
+.VPHero .name {
+  /* Disable the default gradient so solid brand blue shows through */
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: var(--vp-c-brand-1) !important;
+}
+
+.VPHero .text {
+  font-size: 48px !important;
+  line-height: 1.1 !important;
+}
+
+@media (max-width: 640px) {
+  .VPHero .text {
+    font-size: 32px !important;
+  }
+  .VPHero .tagline {
+    font-size: 16px !important;
+  }
+}
+
+/* Full-width tables in coverage section */
+.coverage-wrapper .vp-doc table,
+.coverage-wrapper table {
+  display: table !important;
+  width: 100% !important;
+  table-layout: auto;
+}
+
+/* Supported status pill */
+.pill-supported {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: nowrap;
+  background-color: #dafbe1;
+  color: #1a7f37;
+  border: 1px solid rgba(26, 127, 55, 0.25);
+}
+
+.dark .pill-supported {
+  background-color: rgba(26, 127, 55, 0.18);
+  color: #56d364;
+  border-color: rgba(63, 185, 80, 0.3);
+}
+
+/* Dashboard screenshot */
+.dashboard-screenshot {
+  margin: 2rem auto;
+  max-width: 900px;
+}
+
+.dashboard-screenshot img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--vp-c-divider);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.dark .dashboard-screenshot img {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}

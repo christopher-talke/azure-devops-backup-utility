@@ -326,7 +326,7 @@ class TestVerifyReportStructure(unittest.TestCase):
                 mock_run.return_value = MagicMock(returncode=0, stdout="")
                 report = verify_backup(backup_base, "https://dev.azure.com/myorg", samples=1)
 
-            # Report file written (assertions inside with block — tmpdir still alive)
+            # Report file written (assertions inside with block - tmpdir still alive)
             report_file = backup_base / "_indexes" / "verification_report.json"
             self.assertTrue(report_file.exists())
 

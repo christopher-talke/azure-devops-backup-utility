@@ -64,9 +64,9 @@ tests/
   test_redact.py       # Key/path/contextual redaction, case-insensitivity, data preservation
   test_writers.py      # JSON/binary writes, JSONL append, pretty printing
 examples/
-  azure-pipelines.yml                # ADO pipeline (artefact upload, schedule-only)
+  azure-pipelines.yml                # ADO pipeline (artifact upload, schedule-only)
   azure-pipelines-blob-storage.yml   # ADO pipeline to Azure Blob Storage
-  github-actions-backup.yml          # GitHub Actions (artefact upload)
+  github-actions-backup.yml          # GitHub Actions (artifact upload)
   github-actions-blob-storage.yml    # GitHub Actions to Azure Blob Storage
   github-actions-s3.yml              # GitHub Actions to AWS S3 (with SSE)
   config.yaml                        # Example YAML configuration

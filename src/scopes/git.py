@@ -28,7 +28,7 @@ def backup_git(
 ) -> None:
     """Back up all Git repositories for a project.
 
-    *since* is accepted for API consistency but not used — mirror clones
+    *since* is accepted for API consistency but not used - mirror clones
     always fetch the complete repository history.
     """
     logger.info("Backing up Git repos for project '%s' …", project_name)

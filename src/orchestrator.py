@@ -22,12 +22,12 @@ from scopes import (
 
 logger = logging.getLogger(__name__)
 
-# Shutdown flag — set by signal handler on SIGINT / SIGTERM.
+# Shutdown flag - set by signal handler on SIGINT / SIGTERM.
 _shutdown = threading.Event()
 
 
 def _handle_shutdown(signum: int, frame: Any) -> None:
-    logger.warning("Received signal %d — shutting down gracefully after current scope …", signum)
+    logger.warning("Received signal %d - shutting down gracefully after current scope …", signum)
     _shutdown.set()
 
 
@@ -60,7 +60,7 @@ def run_backup(cfg: BackupConfig) -> int:
 
     if sys.platform == "win32" and len(str(bp.base.resolve())) > 200:
         logger.warning(
-            "Output path is %d characters — long paths on Windows may exceed MAX_PATH (260). "
+            "Output path is %d characters - long paths on Windows may exceed MAX_PATH (260). "
             "Consider a shorter --output-dir or enable long paths in Windows registry.",
             len(str(bp.base.resolve())),
         )
@@ -113,7 +113,7 @@ def run_backup(cfg: BackupConfig) -> int:
     # Process each project
     for proj in project_list:
         if _shutdown.is_set():
-            logger.warning("Shutdown requested — writing partial indexes and exiting")
+            logger.warning("Shutdown requested - writing partial indexes and exiting")
             _write_indexes(bp, inv)
             return 130
 

@@ -1,4 +1,4 @@
-"""Tests for scopes/git.py — per-repo permissions export."""
+"""Tests for scopes/git.py - per-repo permissions export."""
 
 import json
 import tempfile
@@ -117,7 +117,7 @@ class TestRepoPermissions(unittest.TestCase):
             inv = _make_inv()
             backup_git(bp, inv, "https://dev.azure.com/myorg", "MyProject")
 
-            # Only 3 invoke calls (branches, tags, policies) — no permissions call
+            # Only 3 invoke calls (branches, tags, policies) - no permissions call
             self.assertEqual(mock_invoke.call_count, 3)
 
     @patch("azcli.git_clone")

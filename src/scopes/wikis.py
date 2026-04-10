@@ -28,7 +28,7 @@ def backup_wikis(
 ) -> None:
     """Back up wikis and their page content for a project.
 
-    *since* is accepted for API consistency but not currently used — the
+    *since* is accepted for API consistency but not currently used - the
     Azure DevOps wiki API does not support date-based filtering.
     """
     logger.info("Backing up wikis for project '%s' …", project_name)

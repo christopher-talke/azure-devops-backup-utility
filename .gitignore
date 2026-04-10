@@ -7,3 +7,8 @@ build/
 backup/
 ado-backup/
 .pytest_cache/
+
+# Website
+website/node_modules/
+website/.vitepress/cache/
+website/.vitepress/dist/

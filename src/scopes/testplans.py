@@ -28,7 +28,7 @@ def backup_testplans(
 ) -> None:
     """Back up test plans and their suites for a project.
 
-    *since* is accepted for API consistency but not currently used — the
+    *since* is accepted for API consistency but not currently used - the
     Azure DevOps test plans API does not support date-based filtering.
     """
     logger.info("Backing up test plans for project '%s' …", project_name)

@@ -314,7 +314,7 @@ def git_clone(
     """
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    # Pass PAT via git config env vars — keeps creds out of argv and ps output
+    # Pass PAT via git config env vars - keeps creds out of argv and ps output
     env = os.environ.copy()
     if pat and "://" in repo_url:
         token_b64 = base64.b64encode(f"x-token:{pat}".encode()).decode()

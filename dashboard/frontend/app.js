@@ -1,4 +1,4 @@
-/* ADO Backup Dashboard — vanilla JS, no dependencies */
+/* ADO Backup Dashboard - vanilla JS, no dependencies */
 
 (function () {
   "use strict";

@@ -1,4 +1,4 @@
-/* ADO Backup Dashboard — Azure DevOps Fluent Design */
+/* ADO Backup Dashboard - Azure DevOps Fluent Design */
 
 /* ─── Reset & base ───────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -140,7 +140,7 @@ body {
   font-size: 13px;
 }
 
-/* Backup run items — styled like ADO pipeline run list rows */
+/* Backup run items - styled like ADO pipeline run list rows */
 .backup-item {
   display: flex;
   flex-direction: column;
@@ -461,7 +461,7 @@ td.cell-secondary { color: var(--text-secondary); }
 td.cell-error     { color: var(--red-fg); }
 
 /* ─── Status indicators ──────────────────────────────────────────────────── */
-/* Inline status pill — ADO pipeline-run style */
+/* Inline status pill - ADO pipeline-run style */
 .status-pill {
   display: inline-flex;
   align-items: center;

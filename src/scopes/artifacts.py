@@ -28,7 +28,7 @@ def backup_artifacts(
 ) -> None:
     """Back up Azure Artifacts feeds and package metadata for a project.
 
-    *since* is accepted for API consistency but not currently used — the
+    *since* is accepted for API consistency but not currently used - the
     Azure Artifacts API does not support date-based filtering.
     """
     logger.info("Backing up artifacts for project '%s' …", project_name)
